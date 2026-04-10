@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-01b-continue', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type']
+stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-01b-continue', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type', 'step-08-scoping']
 inputDocuments: ['_bmad-output/brainstorming/brainstorming-session-2026-04-08-1500.md']
 workflowType: 'prd'
 classification:
@@ -251,3 +251,50 @@ Hệ thống có 4 vai trò với phạm vi truy cập khác nhau:
 - Cần admin panel để quản lý người dùng, phân quyền Designer, và cấu hình hệ thống
 - Beneficiary account creation flow cần được tích hợp như một action type trong process steps
 - Manager global visibility với scoped action rights: thấy tất cả, nhưng chỉ tương tác với instance mình sở hữu
+
+## Project Scoping & Phased Development
+
+### MVP Strategy & Philosophy
+
+**MVP Approach:** Experience MVP — mục tiêu là đưa toàn bộ 30 quy trình nội bộ lên hệ thống và vận hành hàng ngày trong vòng 3 tháng. Thành công không đo bằng doanh thu hay số người dùng mới mà đo bằng **adoption thực sự**: mọi quy trình chạy qua hệ thống, không còn email hay Excel.
+
+**Resource Requirements:** Team nội bộ hiện tại — không cần mở rộng quy mô MVP.
+
+### MVP Feature Set (Phase 1)
+
+**Core User Journeys Supported:** J1 (Manager khởi động), J2 (Manager xử lý bottleneck), J3 (Designer tạo template), J4 (Executor nhận và hoàn thành task), J5 (Beneficiary xem và ping)
+
+**Must-Have Capabilities:**
+
+- **Process Template Builder** — tạo/sửa/publish template với các bước **tuần tự** (sequential only); gán vai trò/người phụ trách và deadline cho từng bước; *conditional branching và parallel lanes được chuyển sang Growth để giảm rủi ro kỹ thuật*
+- **Process Instance Runner** — khởi tạo instance từ template; tracking real-time (% hoàn thành, bước hiện tại, thời gian còn lại); immutable versioning (instance đóng băng theo phiên bản template lúc khởi tạo)
+- **Manager Dashboard** — toàn cảnh tất cả instance đang chạy; override và ping chỉ trên instance mình khởi động
+- **Executor Inbox** — danh sách task cá nhân từ mọi quy trình, sắp xếp theo urgency/deadline; completion flow với notes
+- **Notification System** — thông báo qua email (SMTP); proactive alert khi bước quá hạn hoặc chưa được xác nhận; outbound notification đến beneficiary trước khi có tài khoản
+- **Beneficiary View** — xem quy trình liên quan đến mình; ping step owner
+- **Activity Log** — lịch sử đầy đủ theo từng instance
+- **Admin Panel** — quản lý người dùng, phân quyền Designer, cấu hình hệ thống
+
+### Post-MVP Features
+
+**Phase 2 — Growth:**
+- Parallel Execution Lanes (các bước chạy song song, tự động merge)
+- Conditional Branching (rẽ nhánh dựa trên thuộc tính instance)
+- Step Output Forms (form output cấu hình sẵn; data pipeline giữa các bước)
+- Analytics nâng cao (bottleneck analysis, SLA compliance, thời gian trung bình)
+- Auto-escalation rules và Manager override nâng cao
+- SSO/LDAP integration
+- Thông báo qua Zalo/Slack
+
+**Phase 3 — Expansion:**
+- External Integrations (HR, ERP, CRM, trigger/receive data)
+- Customer-Facing Portal (beneficiary ngoài tổ chức xem quy trình liên quan)
+- Multi-tenant Packaging (đóng gói cho doanh nghiệp khác tự cài)
+
+### Risk Mitigation Strategy
+
+**Rủi ro kỹ thuật:** Template builder với conditional/parallel logic là phần phức tạp nhất — **mitigated** bằng cách giới hạn MVP chỉ hỗ trợ sequential steps. Đây là quyết định thiết kế có chủ đích, không phải thiếu sót. Kiến trúc cần được thiết kế để mở rộng sang conditional/parallel trong Phase 2 mà không cần refactor lớn.
+
+**Rủi ro nguồn lực:** Scope MVP không cần thu hẹp thêm — team nội bộ đủ khả năng xử lý.
+
+**Rủi ro thị trường (packaging):** Chưa là ưu tiên trong giai đoạn hiện tại — sẽ đánh giá sau khi MVP vận hành ổn định nội bộ.
