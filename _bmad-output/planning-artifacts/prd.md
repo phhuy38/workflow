@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-01b-continue', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success']
+stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-01b-continue', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys']
 inputDocuments: ['_bmad-output/brainstorming/brainstorming-session-2026-04-08-1500.md']
 workflowType: 'prd'
 classification:
@@ -94,3 +94,84 @@ Core loop: **tạo → chạy → theo dõi → can thiệp**
 - **External Integrations:** Kết nối hệ thống bên ngoài (HR, ERP, CRM, Slack, email) để trigger hoặc nhận dữ liệu
 - **Customer-Facing Portal:** Khách hàng doanh nghiệp xem trạng thái quy trình liên quan đến họ (đơn hàng, hợp đồng, yêu cầu dịch vụ)
 - **Multi-tenant Packaging:** Đóng gói hoàn chỉnh với tách biệt dữ liệu cho nhiều doanh nghiệp
+
+## User Journeys
+
+### Journey 1 — Minh, Manager: Khởi động quy trình mượt mà
+
+Minh là trưởng phòng kinh doanh. Thứ Hai, anh nhận được email HR thông báo có nhân viên mới bắt đầu tuần sau. Trước đây, Minh sẽ phải tự nhắn từng phòng ban — IT chuẩn bị máy, HR làm hợp đồng, Admin cấp thẻ. Tuần nào cũng vài lần quên, vài lần nhắc lại.
+
+Hôm nay anh mở hệ thống, chọn template "Onboarding nhân viên mới", điền tên và ngày bắt đầu của nhân viên, nhấn Khởi động. Hệ thống tự động giao việc cho từng bước đầu tiên và gửi thông báo. Minh đóng tab lại.
+
+Trong 5 ngày tiếp theo, anh mở dashboard mỗi sáng — tất cả đều xanh. Ngày thứ 6, nhân viên mới đến có đủ máy tính, thẻ, hợp đồng. Minh chưa nhắn một tin nào.
+
+*Yêu cầu phát sinh: Template builder, Instance runner, Manager dashboard, Notification system.*
+
+---
+
+### Journey 2 — Minh, Manager: Phát hiện và xử lý bottleneck
+
+Giữa tuần, Minh nhận thông báo: bước "Cấp tài khoản hệ thống" trong quy trình onboarding của Hải đã quá 24 giờ chưa được xác nhận. Anh mở chi tiết — thấy Tuấn (IT) được giao nhưng chưa phản hồi.
+
+Minh gửi nhắc việc ngay trong hệ thống kèm ghi chú: *"Hải vào làm thứ Sáu, cần xong trước thứ Năm."* 20 phút sau Tuấn phản hồi: đang chờ cấp quyền từ cấp trên. Minh thấy vấn đề không thuộc Tuấn — anh liên hệ thẳng người có quyền, giải quyết trong ngày.
+
+Mọi hành động đều có log. Nếu sau này có câu hỏi về việc ai delay ở bước nào, timeline minh bạch hoàn toàn.
+
+*Yêu cầu phát sinh: Proactive notifications, in-system messaging, activity log, visibility vào từng bước.*
+
+---
+
+### Journey 3 — Lan, Process Designer: Số hóa một quy trình
+
+Lan là HR manager, được giao nhiệm vụ số hóa toàn bộ quy trình nội bộ. Cô bắt đầu với quy trình onboarding — thứ cô đã chạy bằng email 3 năm nay.
+
+Cô mở Template Builder, tạo các bước theo đúng thứ tự thực tế: HR làm hợp đồng → IT cấp thiết bị → Admin cấp thẻ → Manager giới thiệu team. Mỗi bước cô gán cho phòng ban phụ trách và đặt deadline mặc định. Bước IT cô đánh dấu: nếu nhân viên là developer thì thêm bước "Cài đặt môi trường dev".
+
+Cô publish template. Từ hôm nay, bất kỳ manager nào cũng có thể khởi động quy trình này trong 30 giây.
+
+*Yêu cầu phát sinh: Template builder với step sequencing, role assignment, deadline config, conditional logic (Growth).*
+
+---
+
+### Journey 4 — Tuấn, Executor: Một ngày làm việc có cấu trúc
+
+Tuấn là nhân viên IT. Anh tham gia nhiều quy trình cùng lúc — onboarding, procurement, offboarding. Trước đây anh nhận việc qua email, Slack, đôi khi bị bỏ sót.
+
+Sáng thứ Ba, anh mở Inbox cá nhân: 4 task từ 3 quy trình khác nhau, sắp xếp theo deadline gần nhất lên đầu. Task đầu tiên: cấp laptop cho Hải — deadline hôm nay 17:00. Anh xử lý xong, ghi chú "Đã bàn giao, serial: XYZ123", nhấn Hoàn thành. Hệ thống tự chuyển sang bước tiếp theo và thông báo người phụ trách.
+
+Tuấn không cần biết toàn bộ quy trình — chỉ cần biết việc của mình, khi nào cần xong.
+
+*Yêu cầu phát sinh: Executor inbox, urgency sorting, task completion flow, completion notes.*
+
+---
+
+### Journey 5 — Nam, Nhân viên mới (Người thụ hưởng): Từ thụ động đến có tiếng nói
+
+Nam nhận email mời đăng nhập hệ thống — tài khoản vừa được IT tạo xong (bước "Cấp tài khoản" hoàn thành). Anh đăng nhập lần đầu.
+
+Anh thấy một view đơn giản: quy trình onboarding của chính mình, đang ở bước nào, còn bao nhiêu bước nữa, ai phụ trách bước tiếp theo. Anh không thấy các quy trình khác của công ty — chỉ thấy những gì liên quan đến mình.
+
+Ngày thứ 3, anh thấy bước "Cấp chỗ ngồi và thiết bị văn phòng" chưa có tiến triển. Anh gửi ping đến Admin phụ trách bước đó: *"Cho mình hỏi về chỗ ngồi với ạ?"* Admin nhận thông báo, phản hồi ngay trong hệ thống.
+
+Nam không có quyền can thiệp vào quy trình — nhưng anh có tiếng nói. Anh biết chuyện gì đang xảy ra và có thể hỏi trực tiếp người liên quan mà không cần qua Manager.
+
+*Yêu cầu phát sinh: Beneficiary view (chỉ thấy quy trình của mình), ping/message đến step owner, tài khoản với quyền hạn giới hạn, outbound notification trước khi có tài khoản.*
+
+---
+
+### Journey Requirements Summary
+
+| Capability | Journeys liên quan |
+|---|---|
+| Process Template Builder | J3 |
+| Instance Runner + Real-time tracking | J1, J2 |
+| Manager Dashboard (toàn cảnh) | J1, J2 |
+| Proactive Notifications (delay, deadline) | J2 |
+| In-system Messaging / Ping | J2, J5 |
+| Activity Log | J2 |
+| Executor Inbox (urgency sort) | J4 |
+| Task Completion với Notes | J4 |
+| Outbound Notification (trước khi có tài khoản) | J5 |
+| Beneficiary View (quy trình của mình, giới hạn) | J5 |
+| Ping step owner (từ phía người thụ hưởng) | J5 |
+| Conditional Logic trong template | J3 (Growth) |
