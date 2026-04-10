@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-01b-continue', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation']
+stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-01b-continue', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type']
 inputDocuments: ['_bmad-output/brainstorming/brainstorming-session-2026-04-08-1500.md']
 workflowType: 'prd'
 classification:
@@ -207,3 +207,47 @@ Beneficiary view — cho phép người thụ hưởng xem quy trình của mìn
 
 - **Thông tin quá nhiều → overload:** Notification system cần cơ chế ưu tiên và filter — không phải mọi sự kiện đều cần alert Manager
 - **Beneficiary ping bị lạm dụng:** Cần rate limit hoặc context rõ ràng để tránh beneficiary làm gián đoạn executor không cần thiết
+
+## Enterprise Tool Specific Requirements
+
+### Project-Type Overview
+
+Workflow là phần mềm quản lý quy trình doanh nghiệp dạng **on-premise / self-hosted** — mỗi tổ chức cài đặt và vận hành một instance hoàn toàn độc lập. Không có shared infrastructure giữa các tổ chức. Thiết kế ưu tiên tính đơn giản trong triển khai và dữ liệu nằm hoàn toàn trong hạ tầng của doanh nghiệp.
+
+### Permission Model (RBAC Matrix)
+
+Hệ thống có 4 vai trò với phạm vi truy cập khác nhau:
+
+| Vai trò | Template | Instance | Task | Người dùng |
+|---|---|---|---|---|
+| **Process Designer** | Tạo / Sửa / Publish (nếu được phân quyền) | Xem tất cả | Xem | Quản lý |
+| **Manager** | Xem | Xem tất cả / Khởi động / Override + Ping (chỉ instance mình khởi động) | Xem | Xem |
+| **Executor** | — | — | Chỉ task được giao | — |
+| **Beneficiary** | — | Chỉ quy trình liên quan đến mình | — | — |
+
+**Nguyên tắc phân quyền:**
+- Designer role được gán bởi admin — không phải mặc định cho mọi người dùng
+- Manager có visibility toàn tổ chức (thấy tất cả instance), nhưng chỉ có quyền override/ping instance mà họ tự khởi động
+- Executor hoàn toàn scoped — không thấy context ngoài task của mình
+- Beneficiary được tạo tài khoản tự động khi bước "cấp tài khoản" trong quy trình hoàn thành; một instance có thể có nhiều beneficiary
+- Không có cơ chế giao lại (reassign) task trong MVP — nếu cần thay đổi phải qua Manager override
+
+### Deployment Model
+
+- **Kiến trúc:** Single-tenant, isolated — một instance phần mềm phục vụ một tổ chức
+- **Cài đặt:** Self-service, không cần IT chuyên biệt; tài liệu hướng dẫn đủ rõ cho người có kiến thức server cơ bản
+- **Đóng gói:** Phần mềm có thể được đóng gói (Docker hoặc tương đương) để tổ chức khác tự cài đặt với cấu hình tối thiểu
+- **Data residency:** Toàn bộ dữ liệu lưu trên server của tổ chức, không có external dependency
+
+### Technical Architecture Considerations
+
+- **Authentication:** Hệ thống xác thực nội bộ; tích hợp SSO/LDAP là Growth feature
+- **Notification delivery:** Email là kênh thông báo chính trong MVP (không phụ thuộc bên thứ ba ngoài SMTP); Zalo/Slack là Growth
+- **Database:** Single-instance database phù hợp với quy mô 100 người dùng và 30 quy trình
+- **Scalability:** Không cần thiết kế cho horizontal scaling trong MVP — vertical scaling đủ cho quy mô mục tiêu
+
+### Implementation Considerations
+
+- Cần admin panel để quản lý người dùng, phân quyền Designer, và cấu hình hệ thống
+- Beneficiary account creation flow cần được tích hợp như một action type trong process steps
+- Manager global visibility với scoped action rights: thấy tất cả, nhưng chỉ tương tác với instance mình sở hữu
