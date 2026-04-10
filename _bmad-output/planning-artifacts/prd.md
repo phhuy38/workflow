@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-init', 'step-02-discovery']
+stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-01b-continue']
 inputDocuments: ['_bmad-output/brainstorming/brainstorming-session-2026-04-08-1500.md']
 workflowType: 'prd'
 classification:
