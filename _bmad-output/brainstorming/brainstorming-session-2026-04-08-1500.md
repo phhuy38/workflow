@@ -1,15 +1,18 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5, 6]
+stepsCompleted: [1, 2, 3, 4, 5, 6, 7]
 inputDocuments: []
 session_topic: 'Website quản lý quy trình công việc (Workflow Management System) trong doanh nghiệp'
 session_goals: 'Phát triển ý tưởng và tìm giải pháp xây dựng hệ thống'
 selected_approach: 'ai-recommended'
 techniques_used: ['First Principles Thinking', 'Role Playing', 'SCAMPER Method', 'What If Scenarios', 'Reverse Brainstorming', 'Constraint Mapping']
 ideas_generated: 62
+epics_defined: 7
+user_stories_defined: 45
 context_file: ''
-session_status: 'in_progress'
+session_status: 'completed'
 session_continued: true
-continuation_date: '2026-04-09'
+continuation_date: '2026-04-10'
+workflow_completed: true
 ---
 
 # Brainstorming Session Results
@@ -420,3 +423,383 @@ _Novelty:_ Hệ thống tự học từ khoảng cách giữa template và thự
 - **Hoàn thành:** What If Scenarios, Reverse Brainstorming, Constraint Mapping
 - **Tiếp theo:** Tổ chức 62 ý tưởng thành epics & user stories
 - **Roadmap sau:** Auto-escalation, tích hợp hệ thống bên ngoài (HRIS, email, chat), Mobile App
+
+---
+
+## Tổ chức Epics & User Stories _(2026-04-10)_
+
+**Tổng quan:** 62 ý tưởng được tổ chức thành **7 Epics** và **45 User Stories**.
+
+---
+
+### Epic 1 — Process Design Studio
+
+> **Mục tiêu:** Toàn bộ trải nghiệm của Process Designer — xây dựng, kiểm thử, tái sử dụng quy trình.
+> **Ý tưởng liên quan:** #2, #5, #6, #7, #17, #18, #19, #20, #21, #22, #23, #38, #41, #42
+
+---
+
+**US-1.1 — Visual Flow Builder**
+_Với tư cách Process Designer, tôi muốn xây dựng luồng quy trình bằng giao diện kéo-thả trực quan để định nghĩa parallel lanes và conditional branches mà không cần kiến thức kỹ thuật._
+- Acceptance: Có thể tạo bước tuần tự, song song, và rẽ nhánh bằng drag-and-drop
+- Idea: #7
+
+**US-1.2 — Parallel Execution Lanes**
+_Với tư cách Process Designer, tôi muốn cấu hình các lanes chạy đồng thời để nhiều phòng ban làm việc song song, hệ thống tự merge khi tất cả lanes hoàn thành trước khi sang bước tiếp theo._
+- Acceptance: Template hỗ trợ ≥2 lanes song song; bước tiếp theo chỉ mở khi tất cả lanes xong
+- Idea: #5
+
+**US-1.3 — Conditional Branch Engine**
+_Với tư cách Process Designer, tôi muốn gắn điều kiện vào từng bước dựa trên thuộc tính của instance để một template duy nhất xử lý nhiều trường hợp khác nhau._
+- Acceptance: Hỗ trợ if/else dựa trên field; bước có thể bị bỏ qua hoặc kích hoạt theo điều kiện
+- Idea: #6
+
+**US-1.4 — Structured Step Output Form**
+_Với tư cách Process Designer, tôi muốn cấu hình form output (field bắt buộc và tùy chọn) cho từng bước để chất lượng được kiểm soát tại điểm hoàn thành._
+- Acceptance: Không thể hoàn thành bước nếu chưa điền đủ field bắt buộc
+- Idea: #17, #19
+
+**US-1.5 — Step Data Pipeline**
+_Với tư cách Process Designer, tôi muốn output của bước N tự động hiển thị làm input trong bước N+1 để loại bỏ hoàn toàn vòng lặp hỏi-đáp giữa các phòng ban._
+- Acceptance: Field output được map và hiển thị tự động trong form input bước kế tiếp
+- Idea: #18
+
+**US-1.6 — Template Cloning**
+_Với tư cách Process Designer, tôi muốn clone bất kỳ template nào làm điểm xuất phát để không bao giờ phải xây quy trình từ số 0._
+- Acceptance: Clone sao chép toàn bộ bước, cấu hình, điều kiện; thay đổi bản sao không ảnh hưởng bản gốc
+- Idea: #20
+
+**US-1.7 — Shared Step Library**
+_Với tư cách Process Designer, tôi muốn lưu các bước phổ biến vào thư viện tái sử dụng để thay đổi một lần cập nhật nhiều template._
+- Acceptance: Bước trong thư viện có thể được sync sang tất cả template đang dùng; có tùy chọn chọn sync hay không
+- Idea: #21
+
+**US-1.8 — Designer Dry Run Mode**
+_Với tư cách Process Designer, tôi muốn chạy thử một instance (is_dry_run: true) với tất cả bước gán cho chính mình để trải nghiệm đúng góc nhìn từng vai trò thực thi._
+- Acceptance: Dry run instance gán tất cả bước cho designer; có thể simulate từng step như người thực hiện
+- Idea: #22
+
+**US-1.9 — Dry Run Exclusion from Analytics**
+_Với tư cách Process Designer, tôi muốn tất cả dry run instance bị lọc khỏi mọi báo cáo thống kê để tôi test thoải mái mà không lo làm nhiễu dữ liệu thật._
+- Acceptance: Flag is_dry_run lọc ra khỏi 100% dashboard và báo cáo
+- Idea: #23
+
+**US-1.10 — Template Department Organization**
+_Với tư cách Admin, tôi muốn tổ chức template theo phòng ban và danh mục với phân quyền theo department để mỗi admin chỉ quản lý phạm vi của mình._
+- Acceptance: CEO thấy tất cả template; Department Admin chỉ thấy và chỉnh sửa template của department mình
+- Idea: #38
+
+**US-1.11 — Process Documentation Export**
+_Với tư cách nhân viên bất kỳ, tôi muốn xuất template thành file Word/PDF bao gồm sơ đồ visual, mô tả từng bước, người phụ trách, thời gian dự kiến, điều kiện rẽ nhánh để tài liệu quy trình luôn đồng bộ với thực tế._
+- Acceptance: Export ra PDF/Word; nội dung khớp 100% với cấu hình template hiện tại
+- Idea: #41
+
+**US-1.12 — Process Search & Discovery**
+_Với tư cách nhân viên bất kỳ, tôi muốn tìm kiếm quy trình theo tên, phòng ban, từ khóa với kết quả hiển thị tên, mô tả ngắn, số bước, thời gian trung bình để hiểu cách công ty vận hành._
+- Acceptance: Tìm kiếm full-text; kết quả hiển thị trong <2s
+- Idea: #42
+
+---
+
+### Epic 2 — Instance Lifecycle Management
+
+> **Mục tiêu:** Tạo, chạy, kiểm soát vòng đời đầy đủ của một phiên thực thi quy trình.
+> **Ý tưởng liên quan:** #3, #4, #28, #29, #36, #39, #40
+
+---
+
+**US-2.1 — Immutable Process Instances**
+_Với tư cách Process Runner, tôi muốn mỗi instance được đóng băng theo phiên bản template tại thời điểm khởi tạo để thay đổi template không làm gián đoạn các instance đang chạy._
+- Acceptance: Thay đổi template không ảnh hưởng instance đang chạy; instance lưu snapshot version template
+- Idea: #3
+
+**US-2.2 — Cancel & Restart Instance**
+_Với tư cách Manager, tôi muốn hủy chính thức một instance đang chạy và tạo lại theo template mới (có log, có lý do, có xác nhận) để sự gián đoạn quy trình được quản lý minh bạch._
+- Acceptance: Cancel yêu cầu nhập lý do; tạo lại tạo instance mới với template version mới nhất; log đầy đủ
+- Idea: #4
+
+**US-2.3 — Configurable Instance Intake Form**
+_Với tư cách Process Designer, tôi muốn cấu hình form khởi tạo instance chuẩn hóa để dữ liệu đầu vào được chuẩn hóa ngay từ đầu._
+- Acceptance: Designer cấu hình field trong form khởi tạo; runner chỉ điền form đã định sẵn
+- Idea: #28
+
+**US-2.4 — Multi-role Instance Creation**
+_Với tư cách Manager hoặc CEO, tôi muốn tạo instance và chỉ định process owner để quy trình không bị tắc vì HR vắng mặt._
+- Acceptance: Phân quyền tạo instance cho Manager, CEO (không chỉ HR); có thể gán process owner khác
+- Idea: #29
+
+**US-2.5 — Flexible Assignment Override at Launch**
+_Với tư cách Manager, tôi muốn xem lại và override assignment trước khi instance bắt đầu chạy để cân bằng tính nhất quán của template và tính linh hoạt thực tế._
+- Acceptance: Màn hình xem lại assignment trước khi launch; override được log
+- Idea: #36
+
+**US-2.6 — Dual Approval Mode (Any vs All)**
+_Với tư cách Process Designer, tôi muốn cấu hình từng bước theo chế độ "bất kỳ một người approve" hoặc "tất cả phải approve" để một engine xử lý được cả quy trình linh hoạt lẫn nghiêm ngặt._
+- Acceptance: Mỗi bước có config approval_mode: any | all; logic tự động chuyển bước đúng theo mode
+- Idea: #39
+
+**US-2.7 — Approval Progress Indicator**
+_Với tư cách Manager, tôi muốn thấy "2/3 người đã approve — còn chờ Nguyễn Văn C" để biết chính xác bước approve đang kẹt ở đâu._
+- Acceptance: Hiển thị danh sách approver + trạng thái từng người; mode Any tự chuyển khi có người đầu tiên approve
+- Idea: #40
+
+---
+
+### Epic 3 — Task Execution & Rejection Flow
+
+> **Mục tiêu:** Trải nghiệm người thực hiện — nhận việc, hoàn thành, từ chối, ủy quyền lại.
+> **Ý tưởng liên quan:** #14, #15, #16, #44, #45, #46, #47, #48, #49, #50, #51
+
+---
+
+**US-3.1 — My Work Inbox (Cross-Process)**
+_Với tư cách người thực hiện, tôi muốn một inbox cá nhân tổng hợp TẤT CẢ bước được giao từ mọi quy trình đang chạy để chỉ cần tập trung vào "tôi cần làm gì hôm nay"._
+- Acceptance: Một trang hiển thị tất cả task đang pending của tôi, bất kể thuộc process nào
+- Idea: #14
+
+**US-3.2 — Urgency-First Inbox Sorting**
+_Với tư cách người thực hiện, tôi muốn inbox tự động sắp xếp theo thời gian còn lại tăng dần để không bao giờ phải hỏi "tôi nên làm cái gì trước"._
+- Acceptance: Task sắp hết deadline nhất luôn ở trên cùng; sort tự động, không cần thao tác thủ công
+- Idea: #15
+
+**US-3.3 — One-Click Complete on List View**
+_Với tư cách người thực hiện, tôi muốn nút "Hoàn thành" ngay trên danh sách (và tùy chọn "hoàn thành kèm ghi chú") để không cần mở chi tiết cho những task đơn giản._
+- Acceptance: Quick complete trực tiếp từ list; complete with notes mở inline form
+- Idea: #16
+
+**US-3.4 — Step Rejection with Mandatory Justification**
+_Với tư cách người thực hiện, tôi muốn từ chối chính thức một bước với lý do bắt buộc bằng văn bản để hành động từ chối có thể truy vết, bảo vệ cả hai phía._
+- Acceptance: Nút "Từ chối" yêu cầu nhập lý do tối thiểu N ký tự; rejection được log với timestamp
+- Idea: #44
+
+**US-3.5 — Rejection Evidence Attachment**
+_Với tư cách người thực hiện, tôi muốn đính kèm ảnh/file làm bằng chứng khi từ chối để tạo bằng chứng khách quan, giảm tranh chấp sau này._
+- Acceptance: Hỗ trợ upload ảnh/PDF; file lưu vào activity log vĩnh viễn
+- Idea: #45
+
+**US-3.6 — Rejection Type 1: Roll Back to Previous Step**
+_Với tư cách người thực hiện, tôi muốn chọn "Chuyển về bước trước" khi dữ liệu đầu vào từ bước trước không đủ để lỗi được sửa chính thức mà không cần Manager can thiệp._
+- Acceptance: Chọn rollback → bước trước mở lại → assignee bước trước nhận thông báo hoàn thành lại
+- Idea: #46
+
+**US-3.7 — Rejection Type 2: Suspend Step**
+_Với tư cách người thực hiện, tôi muốn chọn "Không muốn thực hiện" (bắt buộc ghi lý do) để treo bước và có thể quay lại hoàn thành sau, phân biệt rõ "thiếu thông tin" vs "lý do nội bộ"._
+- Acceptance: Suspend giữ nguyên assignee; có thể reopen; quy trình tạm dừng tại bước đó
+- Idea: #47
+
+**US-3.8 — Rejection Notification Chain**
+_Với tư cách Manager, tôi muốn nhận thông báo tự động kèm lý do và loại từ chối khi có bất kỳ từ chối nào xảy ra để không bị bất ngờ khi quy trình dừng._
+- Acceptance: Notification gửi đến Manager + assignee bước trước; bao gồm rejection type + reason
+- Idea: #48
+
+**US-3.9 — Peer Suggestion Reassignment**
+_Với tư cách người thực hiện, tôi muốn đề xuất một đồng nghiệp cụ thể kèm lý do khi từ chối để Manager có thể tận dụng trí tuệ phân tán của người trong cuộc._
+- Acceptance: Form từ chối có tùy chọn "Đề xuất người khác" + field lý do; Manager nhận notification để quyết định
+- Idea: #49
+
+**US-3.10 — Hard Stop on Re-Delegation**
+_Với tư cách Manager, tôi muốn lock người nhận cuối cùng (ẩn hoàn toàn nút từ chối, gán flag is_final_assignee) để tránh vòng lặp ủy quyền vô tận._
+- Acceptance: is_final_assignee: true → không hiển thị nút từ chối/đề xuất người khác
+- Idea: #50
+
+**US-3.11 — Suggestion Fit Reason Log**
+_Với tư cách Manager, tôi muốn lý do đề xuất người thay thế được lưu vào activity log của bước để biến local knowledge thành dữ liệu tổ chức có thể tham chiếu._
+- Acceptance: Lý do đề xuất hiển thị trong activity log với tên người đề xuất và timestamp
+- Idea: #51
+
+---
+
+### Epic 4 — Role-based Dashboards
+
+> **Mục tiêu:** Giao diện riêng biệt và tối ưu cho từng vai trò — mỗi người thấy đúng thứ mình cần.
+> **Ý tưởng liên quan:** #1, #9, #11, #12, #13, #27, #30, #31, #32, #33
+
+---
+
+**US-4.1 — Manager Instance Dashboard**
+_Với tư cách Manager, tôi muốn dashboard tập trung vào các instance của team mình để thấy ngay trạng thái vận hành ảnh hưởng trực tiếp đến productivity của team._
+- Acceptance: Dashboard lọc theo team/department; hiển thị tất cả instance đang chạy của Manager đó
+- Idea: #1
+
+**US-4.2 — Proactive Kickoff Notification**
+_Với tư cách Manager, tôi muốn hệ thống tự động thông báo cho người phụ trách bước đầu tiên ngay khi tôi tạo instance để chỉ cần "bắn súng khởi đầu", hệ thống tự lo phần còn lại._
+- Acceptance: Khi instance được tạo → assignee bước 1 nhận notification trong <1 phút
+- Idea: #9
+
+**US-4.3 — Deadline Countdown with SLA Visual Indicator**
+_Với tư cách Manager, tôi muốn mỗi bước hiển thị: đã chạy bao lâu / tổng thời gian cho phép / còn lại bao nhiêu (màu xanh/vàng/đỏ) để SLA là tín hiệu hành động trực quan, không chỉ là con số._
+- Acceptance: Ba màu: xanh (>50% thời gian còn), vàng (20–50%), đỏ (<20%); hiển thị trên từng bước
+- Idea: #11
+
+**US-4.4 — Manager Override — Manual Step Completion**
+_Với tư cách Manager, tôi muốn tự đánh dấu hoàn thành một bước (bắt buộc ghi lý do, log là "completed by override") để có quyền thực sự xử lý tình huống khẩn cấp._
+- Acceptance: Override yêu cầu nhập lý do; action log hiển thị "override by [Manager]"; instance tiếp tục chạy bình thường
+- Idea: #12
+
+**US-4.5 — In-System Nudge with Reply**
+_Với tư cách Manager, tôi muốn gửi "nhắc việc chính thức" trực tiếp từ hệ thống (người nhận có thể reply tại đó) để toàn bộ communication liên quan đến bước nằm trong một nơi._
+- Acceptance: Nudge từ Manager có thread reply; tất cả message lưu trong activity log của bước
+- Idea: #13
+
+**US-4.6 — CEO Executive Dashboard**
+_Với tư cách CEO, tôi muốn dashboard tổng hợp KPI toàn tổ chức (số instance đang chạy, tỷ lệ hoàn thành đúng hạn, thời gian trung bình, phòng ban nào là bottleneck) với bộ lọc theo thời gian/phòng ban/loại quy trình._
+- Acceptance: Bộ lọc đa chiều; dữ liệu cập nhật real-time hoặc theo batch ≤1 giờ
+- Idea: #27
+
+**US-4.7 — HR Overview Dashboard**
+_Với tư cách HR, tôi muốn dashboard hiển thị tất cả instance đang chạy (mỗi dòng là một người, hiển thị bước hiện tại, % hoàn thành, ngày bắt đầu làm việc, trạng thái) để nhìn một màn hình thấy toàn bộ pipeline nhân sự._
+- Acceptance: Mỗi row = 1 instance; có các cột: tên, quy trình, bước hiện tại, %, ngày bắt đầu, trạng thái
+- Idea: #30
+
+**US-4.8 — Days Until Start Date Countdown Sort**
+_Với tư cách HR, tôi muốn dashboard sắp xếp theo countdown đến ngày nhân viên bắt đầu làm việc để ưu tiên dựa trên business event, không phải SLA kỹ thuật._
+- Acceptance: Sort mặc định = days_until_start tăng dần; người bắt đầu sớm nhất ở trên
+- Idea: #31
+
+**US-4.9 — Employee Self-Service Onboarding Portal**
+_Với tư cách nhân viên mới, tôi muốn có tài khoản để xem toàn bộ quy trình onboarding của mình (các bước, ai phụ trách, bước nào xong, bước nào đang chờ) để chủ động theo dõi thay vì thụ động chờ đợi._
+- Acceptance: Nhân viên mới có login; thấy progress tracker của instance liên quan đến mình; read-only
+- Idea: #32
+
+**US-4.10 — Expected Ready Date Display**
+_Với tư cách nhân viên mới, tôi muốn xem ngày dự kiến sẵn sàng cho từng hạng mục ("Laptop dự kiến thứ Ba, Email công ty dự kiến thứ Hai") để biết cần chuẩn bị gì và khi nào._
+- Acceptance: Tính toán từ tiến độ thực tế + SLA còn lại; hiển thị ngày cụ thể, cập nhật theo tiến độ
+- Idea: #33
+
+---
+
+### Epic 5 — Notifications & Escalation Engine
+
+> **Mục tiêu:** Hệ thống cảnh báo, nhắc nhở, leo thang tự động khi quy trình bị trễ hoặc cần hành động.
+> **Ý tưởng liên quan:** #8, #34, #35, #59
+
+---
+
+**US-5.1 — Acknowledgment Gate with Auto-Escalation**
+_Với tư cách Process Designer, tôi muốn cấu hình yêu cầu xác nhận nhận việc trong vòng X giờ (tự động leo thang lên Manager hoặc backup nếu không xác nhận) để phân biệt rõ 4 trạng thái: đã giao / đã nhận / đang làm / hoàn thành._
+- Acceptance: 4 trạng thái riêng biệt; timer đếm ngược từ lúc giao; escalation tự động sau X giờ
+- Idea: #8
+
+**US-5.2 — Stakeholder Nudge — Anyone Can Remind**
+_Với tư cách bất kỳ stakeholder nào liên quan đến instance (kể cả nhân viên mới), tôi muốn gửi thông báo nhắc nhở đến người đang phụ trách bước bị trễ để quy trình không phụ thuộc hoàn toàn vào Manager._
+- Acceptance: Mọi người có quyền xem instance đó đều có nút "Nhắc nhở"; notification ghi rõ ai gửi
+- Idea: #34
+
+**US-5.3 — Nudge Rate Limiting**
+_Với tư cách System, tôi muốn giới hạn mỗi người tối đa 1 nudge/ngày cho cùng một bước (có log ai đã nhắc lúc mấy giờ) để cân bằng giữa trao quyền stakeholder và bảo vệ người thực hiện khỏi spam._
+- Acceptance: Sau khi nudge, nút bị disable 24 giờ cho người đó; log đầy đủ nudge history
+- Idea: #35
+
+**US-5.4 — Mobile Push Notification**
+_Với tư cách người thực hiện, tôi muốn nhận push notification trên điện thoại (tap vào mở thẳng bước cần xử lý, không cần login lại) để giảm friction từ "nhận thông báo" đến "hoàn thành hành động" xuống còn vài giây._
+- Acceptance: Deep link từ notification mở thẳng step detail; không yêu cầu re-authentication trong 30 phút
+- Idea: #59
+
+---
+
+### Epic 6 — Analytics & Performance Intelligence
+
+> **Mục tiêu:** Dữ liệu vận hành, KPI cá nhân, bottleneck detection, cải thiện quy trình dựa trên dữ liệu.
+> **Ý tưởng liên quan:** #24, #25, #26, #43, #52, #53, #54, #55, #56, #57
+
+---
+
+**US-6.1 — Process Performance Analytics Dashboard**
+_Với tư cách Process Designer, tôi muốn dashboard riêng cho từng template hiển thị: average completion time/bước, bước bị override nhiều nhất, bước có ghi chú chậm trễ, field hay bỏ trống để dữ liệu vận hành tạo feedback loop cải thiện quy trình._
+- Acceptance: Dashboard lọc theo template; visualize top 3 bottleneck steps; export CSV
+- Idea: #24
+
+**US-6.2 — Bottleneck Detection Alert**
+_Với tư cách Process Designer, tôi muốn nhận alert tự động khi bước X bị trễ trong >30% instance để chuyển từ "chủ động phân tích" sang "được hệ thống chủ động gợi ý"._
+- Acceptance: Threshold configurable (mặc định 30%); alert gợi ý action: "Cân nhắc xem lại SLA hoặc người phụ trách"
+- Idea: #25
+
+**US-6.3 — Process Version Comparison**
+_Với tư cách Process Designer, tôi muốn so sánh KPI giữa phiên bản cũ và mới của template (thời gian hoàn thành, tỷ lệ trễ hạn, tỷ lệ override) để quản lý quy trình trở thành thực hành có dữ liệu._
+- Acceptance: Chọn 2 version để so sánh; hiển thị delta % cho từng KPI
+- Idea: #26
+
+**US-6.4 — Deadline Aggregation (Bottom-Up Calculation)**
+_Với tư cách Manager, tôi muốn deadline toàn bộ quy trình được tự động tính từ tổng thời gian tối đa các bước tuần tự (bước song song tính theo bước dài nhất) để không phải ước tính thủ công._
+- Acceptance: Deadline tự tính khi tạo instance; cập nhật lại nếu SLA bước thay đổi
+- Idea: #43
+
+**US-6.5 — Template Suggestion Signal from Delegation Patterns**
+_Với tư cách Process Designer, tôi muốn nhận alert khi cùng một người được đề xuất ≥3 lần cho cùng loại bước để pattern thực tế tự động feed ngược về cải thiện template._
+- Acceptance: Alert ghi rõ: "Bước X — [Tên người] được đề xuất N lần"; link đến template editor
+- Idea: #52
+
+**US-6.6 — Personal Performance Score (Private)**
+_Với tư cách người thực hiện, tôi muốn dashboard cá nhân riêng tư hiển thị điểm tổng hợp: tỷ lệ đúng hạn, số bị override, số lần từ chối, thời gian xử lý trung bình vs SLA để có gương phản chiếu hành vi mà không bị phán xét công khai._
+- Acceptance: Chỉ bản thân xem được; Manager không thể xem điểm thô
+- Idea: #53
+
+**US-6.7 — Manager Team Performance View**
+_Với tư cách Manager, tôi muốn xem performance profile của từng thành viên trong team (điểm mạnh/yếu theo loại bước, xu hướng theo thời gian) — không phải bảng xếp hạng mà là profile riêng từng người để dữ liệu workflow trở thành input cho 1-1 và review._
+- Acceptance: Manager thấy profile từng người; không có leaderboard công khai; filter theo time range
+- Idea: #54
+
+**US-6.8 — Score Breakdown by 4 Dimensions**
+_Với tư cách người thực hiện, tôi muốn điểm được chia thành 4 chiều riêng (Timeliness, Reliability, Responsiveness, Quality) mỗi chiều có màu riêng để hiểu chính xác tại sao điểm thay đổi._
+- Acceptance: 4 dimensions hiển thị riêng; mỗi dimension có màu đặc trưng + tooltip giải thích
+- Idea: #55
+
+**US-6.9 — Score Trend Over Time**
+_Với tư cách người thực hiện, tôi muốn đồ thị xu hướng 30/60/90 ngày trên dashboard cá nhân để nhìn dài hạn, không bị ám ảnh bởi một bước trễ._
+- Acceptance: Line chart 3 khung thời gian; điểm cập nhật hàng ngày
+- Idea: #56
+
+**US-6.10 — Contextual Score Normalization**
+_Với tư cách hệ thống, tôi muốn tính điểm tương đối theo độ khó của bước (SLA 2 giờ hoàn thành đúng hạn > SLA 3 ngày; bước nhiều dependency bị trừ ít hơn nếu trễ) để người nhận việc khó không bị thiệt thòi._
+- Acceptance: Scoring algorithm chuẩn hóa theo SLA và dependency count; công thức có documentation
+- Idea: #57
+
+---
+
+### Epic 7 — Continuous Improvement & Mobile
+
+> **Mục tiêu:** Thu thập gap data từ thực tế, hệ thống tự cải thiện, truy cập mobile cho người thực hiện.
+> **Ý tưởng liên quan:** #58, #60, #61, #62
+
+---
+
+**US-7.1 — Mobile App for Task Executors**
+_Với tư cách người thực hiện, tôi muốn ứng dụng mobile tập trung vào "My Work Inbox" (xem task, acknowledge, hoàn thành bước, gửi nudge) để xử lý công việc mà không cần ngồi vào máy tính._
+- Acceptance: iOS + Android; tính năng: xem inbox, acknowledge, complete, nudge; offline mode cho xem task
+- Idea: #58
+
+**US-7.2 — Post-Instance Feedback Loop**
+_Với tư cách Process Designer, tôi muốn Manager nhận prompt ngắn sau mỗi instance hoàn thành ("Quy trình có phản ánh đúng thực tế không? Bước nào thiếu hoặc thừa?") để thu thập gap data từ người vận hành._
+- Acceptance: Prompt xuất hiện sau instance complete; câu trả lời gửi thẳng đến Designer; có thể skip
+- Idea: #60
+
+**US-7.3 — Freeform Note per Step ("Ngoài quy trình")**
+_Với tư cách người thực hiện, tôi muốn ô ghi chú tự do "Điều gì xảy ra ngoài quy trình?" luôn có sẵn trên mỗi bước (không bắt buộc) để capture những yếu tố thực tế chưa được template hóa._
+- Acceptance: Text area tự do; không validate; hiển thị trong activity log; có thể search
+- Idea: #61
+
+**US-7.4 — Template Suggestion from Instance History**
+_Với tư cách Process Designer, tôi muốn hệ thống phân tích pattern trong freeform notes sau N instance và gợi ý "80% instance có ghi chú về bước X — cân nhắc thêm sub-step hoặc field mới" để hệ thống tự học từ khoảng cách giữa template và thực tế._
+- Acceptance: Analysis chạy sau mỗi N instance (N configurable); suggestions hiển thị trong Template Editor
+- Idea: #62
+
+---
+
+## Tổng kết phiên brainstorming
+
+**Thành tựu:**
+- **62 ý tưởng** được tạo ra qua 6 kỹ thuật sáng tạo
+- **7 Epics** bao phủ toàn bộ hệ thống từ thiết kế đến vận hành
+- **45 User Stories** sẵn sàng để ước lượng và lên sprint
+
+**Các insight cốt lõi:**
+1. **Visibility + Accountability + Predictability** là 3 vấn đề gốc rễ cần giải quyết
+2. **Manager của người thụ hưởng** là user quan trọng nhất, không phải người vận hành quy trình
+3. **Immutable instances** (giống Git commit) giải quyết tension giữa cải tiến template và ổn định vận hành
+4. **Reject là first-class feature** — hệ thống trưởng thành khi chấp nhận và quản lý sự gián đoạn
+5. **Continuous improvement loop** (freeform notes → pattern analysis → template suggestion) là lợi thế cạnh tranh dài hạn
+
+**Roadmap ưu tiên gợi ý:**
+- **MVP:** Epic 1 (Process Design) + Epic 2 (Instance Lifecycle) + Epic 3 (Task Execution)
+- **V1.1:** Epic 4 (Dashboards) + Epic 5 (Notifications)
+- **V1.2:** Epic 6 (Analytics) + Epic 7 (Continuous Improvement + Mobile)
