@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-01b-continue', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type', 'step-08-scoping']
+stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-01b-continue', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type', 'step-08-scoping', 'step-09-functional']
 inputDocuments: ['_bmad-output/brainstorming/brainstorming-session-2026-04-08-1500.md']
 workflowType: 'prd'
 classification:
@@ -298,3 +298,63 @@ Hệ thống có 4 vai trò với phạm vi truy cập khác nhau:
 **Rủi ro nguồn lực:** Scope MVP không cần thu hẹp thêm — team nội bộ đủ khả năng xử lý.
 
 **Rủi ro thị trường (packaging):** Chưa là ưu tiên trong giai đoạn hiện tại — sẽ đánh giá sau khi MVP vận hành ổn định nội bộ.
+
+## Functional Requirements
+
+### Quản lý Template Quy trình
+
+- **FR1:** Process Designer có thể tạo template quy trình mới với các bước tuần tự (sequential)
+- **FR2:** Process Designer có thể cấu hình từng bước: tên, mô tả, người/vai trò phụ trách, deadline mặc định
+- **FR3:** Process Designer có thể chỉnh sửa template đang tồn tại
+- **FR4:** Process Designer có thể publish hoặc unpublish template để cho phép hoặc ngăn khởi động instance mới
+- **FR5:** Process Designer có thể xem danh sách tất cả template trong hệ thống
+- **FR6:** Hệ thống lưu phiên bản template tại thời điểm instance được khởi tạo — thay đổi template không ảnh hưởng đến instance đang chạy
+
+### Vận hành Quy trình (Instance Execution)
+
+- **FR7:** Manager có thể khởi tạo instance từ template đã publish, cung cấp thông tin context và danh sách beneficiary
+- **FR8:** Hệ thống tự động giao task bước đầu tiên cho người/vai trò phụ trách ngay khi instance được khởi động
+- **FR9:** Hệ thống cung cấp tracking real-time cho mỗi instance: bước hiện tại, % hoàn thành, thời gian đã chạy, ước tính còn lại
+- **FR10:** Executor có thể xác nhận đã nhận task (acknowledge) để cập nhật trạng thái từ "đã giao" sang "đang thực hiện"
+- **FR11:** Executor có thể đánh dấu hoàn thành một bước kèm ghi chú tùy chọn
+- **FR12:** Hệ thống tự động kích hoạt bước tiếp theo và giao task cho người phụ trách khi bước hiện tại được hoàn thành
+- **FR13:** Manager có thể override (đánh dấu hoàn thành) một bước trong instance mình khởi động, bắt buộc nhập lý do
+- **FR14:** Manager có thể hủy instance đang chạy mà mình đã khởi động, bắt buộc nhập lý do
+- **FR15:** Hệ thống ghi log đầy đủ mọi hành động trên instance: thời điểm giao việc, xác nhận, hoàn thành, override, hủy, tin nhắn
+
+### Bảng điều khiển Manager
+
+- **FR16:** Manager có thể xem toàn bộ instance đang chạy trong tổ chức
+- **FR17:** Manager có thể lọc và tìm kiếm instance theo template, trạng thái, executor, và deadline
+- **FR18:** Manager có thể xem chi tiết một instance: timeline, trạng thái từng bước, và activity log đầy đủ
+- **FR19:** Manager có thể gửi tin nhắn nhắc việc trực tiếp đến executor phụ trách một bước trong instance mình khởi động
+
+### Quản lý Task của Executor
+
+- **FR20:** Executor có thể xem danh sách tổng hợp tất cả task được giao từ mọi quy trình đang chạy
+- **FR21:** Hệ thống sắp xếp task theo mức độ khẩn cấp dựa trên deadline còn lại
+- **FR22:** Executor có thể xem thông tin chi tiết của task bao gồm context quy trình liên quan
+- **FR23:** Executor có thể hoàn thành task trực tiếp từ màn hình danh sách mà không cần mở chi tiết
+
+### Giao diện Beneficiary
+
+- **FR24:** Beneficiary có thể xem danh sách các quy trình đang chạy liên quan đến mình
+- **FR25:** Beneficiary có thể xem trạng thái chi tiết của quy trình: bước hiện tại, người phụ trách, tiến độ tổng thể
+- **FR26:** Beneficiary có thể gửi tin nhắn đến người phụ trách bước hiện tại trong quy trình của mình
+
+### Thông báo & Giao tiếp
+
+- **FR27:** Hệ thống gửi thông báo cho executor khi được giao task mới
+- **FR28:** Hệ thống gửi thông báo cho Manager khi bước trong instance mình khởi động chưa được xác nhận sau khoảng thời gian cấu hình
+- **FR29:** Hệ thống gửi thông báo cho Manager khi bước trong instance mình khởi động sắp hoặc đã vượt deadline
+- **FR30:** Hệ thống gửi thông báo cho executor khi task sắp đến deadline
+- **FR31:** Hệ thống gửi thông báo ra bên ngoài (email) đến beneficiary trước khi họ có tài khoản hệ thống
+- **FR32:** Người nhận tin nhắn/ping có thể phản hồi trong ngữ cảnh của bước liên quan
+
+### Quản trị Hệ thống
+
+- **FR33:** Admin có thể tạo, chỉnh sửa và vô hiệu hóa tài khoản người dùng
+- **FR34:** Admin có thể gán và thu hồi quyền Process Designer cho người dùng
+- **FR35:** Admin có thể cấu hình thông số hệ thống bao gồm cài đặt email (SMTP)
+- **FR36:** Hệ thống tự động tạo tài khoản Beneficiary và gửi thông báo đăng nhập khi một bước kiểu "cấp tài khoản" trong quy trình được hoàn thành
+- **FR37:** Hệ thống kiểm soát truy cập theo 5 vai trò với phạm vi quyền hạn riêng biệt: Admin, Process Designer, Manager, Executor, Beneficiary
