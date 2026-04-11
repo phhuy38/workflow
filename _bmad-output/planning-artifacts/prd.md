@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-01b-continue', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type', 'step-08-scoping', 'step-09-functional']
+stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-01b-continue', 'step-02b-vision', 'step-02c-executive-summary', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type', 'step-08-scoping', 'step-09-functional', 'step-10-nonfunctional']
 inputDocuments: ['_bmad-output/brainstorming/brainstorming-session-2026-04-08-1500.md']
 workflowType: 'prd'
 classification:
@@ -358,3 +358,26 @@ Hệ thống có 4 vai trò với phạm vi truy cập khác nhau:
 - **FR35:** Admin có thể cấu hình thông số hệ thống bao gồm cài đặt email (SMTP)
 - **FR36:** Hệ thống tự động tạo tài khoản Beneficiary và gửi thông báo đăng nhập khi một bước kiểu "cấp tài khoản" trong quy trình được hoàn thành
 - **FR37:** Hệ thống kiểm soát truy cập theo 5 vai trò với phạm vi quyền hạn riêng biệt: Admin, Process Designer, Manager, Executor, Beneficiary
+
+## Non-Functional Requirements
+
+### Performance
+
+- **NFR1:** Các trang dashboard và chi tiết instance tải trong vòng 3 giây với 100 người dùng hoạt động đồng thời trong điều kiện bình thường
+- **NFR2:** Thông báo được gửi đến người nhận trong vòng 60 giây sau khi sự kiện trigger (bước hoàn thành, deadline, chưa xác nhận)
+
+### Reliability
+
+- **NFR3:** Hệ thống duy trì uptime không gián đoạn trong giờ làm việc (08:00–18:00 các ngày làm việc)
+- **NFR4:** Không mất dữ liệu khi xảy ra sự cố — hệ thống hỗ trợ khôi phục từ backup
+
+### Security
+
+- **NFR5:** Toàn bộ dữ liệu người dùng và quy trình lưu trên server của tổ chức — không truyền ra ngoài ngoại trừ email thông báo qua SMTP
+- **NFR6:** Người dùng chỉ có thể truy cập tính năng và dữ liệu phù hợp với vai trò được gán — mọi vi phạm quyền truy cập đều bị từ chối và ghi log
+- **NFR7:** Session người dùng hết hạn tự động sau khoảng thời gian không hoạt động có thể cấu hình bởi Admin
+
+### Deployability
+
+- **NFR8:** Hệ thống có thể được cài đặt và khởi động bởi người có kiến thức server cơ bản trong vòng dưới 1 giờ với tài liệu hướng dẫn đi kèm
+- **NFR9:** Hệ thống được đóng gói để triển khai tự động (Docker hoặc tương đương) với cấu hình tối thiểu
