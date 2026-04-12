@@ -236,7 +236,7 @@ Hệ thống có 4 vai trò với phạm vi truy cập khác nhau:
 
 - **Kiến trúc:** Single-tenant, isolated — một instance phần mềm phục vụ một tổ chức
 - **Cài đặt:** Self-service, không cần IT chuyên biệt; tài liệu hướng dẫn đủ rõ cho người có kiến thức server cơ bản
-- **Đóng gói:** Phần mềm có thể được đóng gói (Docker hoặc tương đương) để tổ chức khác tự cài đặt với cấu hình tối thiểu
+- **Đóng gói:** Phần mềm đóng gói dạng container (Docker hoặc tương đương) — tổ chức khác tự cài đặt với cấu hình tối thiểu
 - **Data residency:** Toàn bộ dữ liệu lưu trên server của tổ chức, không có external dependency
 
 ### Technical Architecture Considerations
@@ -245,6 +245,16 @@ Hệ thống có 4 vai trò với phạm vi truy cập khác nhau:
 - **Notification delivery:** Email là kênh thông báo chính trong MVP (không phụ thuộc bên thứ ba ngoài SMTP); Zalo/Slack là Growth
 - **Database:** Single-instance database phù hợp với quy mô 100 người dùng và 30 quy trình
 - **Scalability:** Không cần thiết kế cho horizontal scaling trong MVP — vertical scaling đủ cho quy mô mục tiêu
+
+### Integration List
+
+| Kênh / Hệ thống | Phase | Ghi chú |
+|---|---|---|
+| Email (SMTP) | MVP | Kênh thông báo chính; cấu hình bởi Admin |
+| Telegram | Growth | Kênh thông báo bắt buộc trong Growth phase |
+| Zalo / Slack | Growth | Bổ sung sau Telegram |
+| SSO / LDAP | Growth | Authentication tích hợp |
+| HR / ERP / CRM | Vision | External triggers và data exchange |
 
 ### Implementation Considerations
 
@@ -345,9 +355,9 @@ Hệ thống có 4 vai trò với phạm vi truy cập khác nhau:
 ### Thông báo & Giao tiếp
 
 - **FR27:** Hệ thống gửi thông báo cho executor khi được giao task mới
-- **FR28:** Hệ thống gửi thông báo cho Manager khi bước trong instance mình khởi động chưa được xác nhận sau khoảng thời gian cấu hình
-- **FR29:** Hệ thống gửi thông báo cho Manager khi bước trong instance mình khởi động sắp hoặc đã vượt deadline
-- **FR30:** Hệ thống gửi thông báo cho executor khi task sắp đến deadline
+- **FR28:** Hệ thống gửi thông báo cho Manager khi bước trong instance mình khởi động chưa được xác nhận sau 1 giờ kể từ khi giao (mặc định, có thể cấu hình bởi Admin)
+- **FR29:** Hệ thống gửi thông báo cho Manager khi bước trong instance mình khởi động còn lại ≤ 30% số giờ deadline của bước đó hoặc đã vượt deadline
+- **FR30:** Hệ thống gửi thông báo cho executor khi task còn lại ≤ 30% số giờ deadline của bước đó
 - **FR31:** Hệ thống gửi thông báo ra bên ngoài (email) đến beneficiary trước khi họ có tài khoản hệ thống
 - **FR32:** Người nhận tin nhắn/ping có thể phản hồi trong ngữ cảnh của bước liên quan
 
@@ -379,5 +389,5 @@ Hệ thống có 4 vai trò với phạm vi truy cập khác nhau:
 
 ### Deployability
 
-- **NFR8:** Hệ thống có thể được cài đặt và khởi động bởi người có kiến thức server cơ bản trong vòng dưới 1 giờ với tài liệu hướng dẫn đi kèm
+- **NFR8:** Người có kiến thức server cơ bản có thể cài đặt và khởi động hệ thống trong vòng dưới 1 giờ với tài liệu hướng dẫn đi kèm
 - **NFR9:** Hệ thống được đóng gói để triển khai tự động (Docker hoặc tương đương) với cấu hình tối thiểu
