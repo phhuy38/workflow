@@ -1,0 +1,100 @@
+# generated: 2026-04-12
+# last_updated: 2026-04-12
+# project: workflow
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-04-12
+last_updated: 2026-04-13
+project: workflow
+
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # ─── Epic 1: Foundation, Infrastructure & System Administration ───
+  epic-1: in-progress
+  1-1-initialize-project-configure-development-infrastructure: done
+  1-2-authentication-login-logout-session-security: review
+  1-3-role-based-access-control-5-roles-policy-layer: backlog
+  1-4-admin-user-account-management: backlog
+  1-5-system-configuration-smtp-session-settings: backlog
+  epic-1-retrospective: optional
+
+  # ─── Epic 2: Process Template Management ───
+  epic-2: backlog
+  2-1-template-list-create-new-template: backlog
+  2-2-configure-template-steps-with-visual-builder: backlog
+  2-3-edit-existing-template: backlog
+  2-4-publish-unpublish-template: backlog
+  epic-2-retrospective: optional
+
+  # ─── Epic 3: Process Instance Execution ───
+  epic-3: backlog
+  3-1-launch-process-instance: backlog
+  3-2-executor-acknowledge-complete-step: backlog
+  3-3-automatic-step-progression-process-completion: backlog
+  3-4-manager-override-step-cancel-instance: backlog
+  3-5-activity-log-full-audit-trail: backlog
+  epic-3-retrospective: optional
+
+  # ─── Epic 4: Manager Dashboard & Real-time Visibility ───
+  epic-4: backlog
+  4-1-manager-dashboard-traffic-light-status: backlog
+  4-2-filter-search-instances: backlog
+  4-3-instance-detail-progress-tracking: backlog
+  4-4-real-time-dashboard-instance-updates-via-websocket: backlog
+  4-5-inline-manager-ping-send-message-to-executor: backlog
+  epic-4-retrospective: optional
+
+  # ─── Epic 5: Executor Inbox & Task Management ───
+  epic-5: backlog
+  5-1-executor-inbox-consolidated-sorted-task-list: backlog
+  5-2-view-task-detail-with-process-context: backlog
+  5-3-quick-complete-task-from-inbox-list: backlog
+  epic-5-retrospective: optional
+
+  # ─── Epic 6: Notifications & Proactive Alerts ───
+  epic-6: backlog
+  6-1-task-assignment-email-notification: backlog
+  6-2-deadline-unacknowledged-step-alerts: backlog
+  6-3-pre-account-beneficiary-email-notification: backlog
+  epic-6-retrospective: optional
+
+  # ─── Epic 7: Beneficiary Experience & In-System Messaging ───
+  epic-7: backlog
+  7-1-beneficiary-auto-account-creation: backlog
+  7-2-beneficiary-view-my-process-status: backlog
+  7-3-beneficiary-ping-in-system-messaging-reply: backlog
+  epic-7-retrospective: optional

@@ -1,0 +1,35 @@
+# Development overrides — automatically applied by docker compose
+# Adds: bind mounts, mailpit, exposed ports for dev tools
+
+services:
+  app:
+    build:
+      target: builder  # Use builder stage with dev tools in dev
+    volumes:
+      - ./:/var/www/html  # Bind mount for hot reload
+      - /var/www/html/vendor  # Preserve vendor in container
+      - /var/www/html/node_modules  # Preserve node_modules in container
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - TELESCOPE_ENABLED=true
+
+  nginx:
+    ports:
+      - "8000:80"  # Dev port
+
+  postgres:
+    ports:
+      - "5432:5432"  # Expose for local dev tools (TablePlus, DBeaver, etc.)
+
+  redis:
+    ports:
+      - "6379:6379"  # Expose for local inspection
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"  # Mailpit web UI
+      - "1025:1025"  # SMTP port
+    networks:
+      - workflow
