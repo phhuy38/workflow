@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\User;
-use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
 
 test('login screen can be rendered', function () {
@@ -71,12 +70,15 @@ test('users can logout', function () {
 test('inactive users cannot login', function () {
     $user = User::factory()->create(['is_active' => false]);
 
-    $this->post(route('login.store'), [
+    $response = $this->post(route('login.store'), [
         'email' => $user->email,
         'password' => 'password',
     ]);
 
     $this->assertGuest();
+    // AC6: error message must be identical to wrong-password — no user enumeration
+    $response->assertSessionHasErrors('email');
+    expect(session('errors')->first('email'))->toBe(__('auth.failed'));
 });
 
 test('last_login_at is updated on successful login', function () {
@@ -102,10 +104,27 @@ test('active user can login successfully', function () {
     $response->assertRedirect(route('dashboard', absolute: false));
 });
 
+test('last_login_at is not updated when inactive user attempts login', function () {
+    $user = User::factory()->create(['is_active' => false, 'last_login_at' => null]);
+
+    $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ]);
+
+    expect($user->fresh()->last_login_at)->toBeNull();
+});
+
 test('users are rate limited', function () {
     $user = User::factory()->create();
 
-    RateLimiter::increment(md5('login'.implode('|', [$user->email, '127.0.0.1'])), amount: 5);
+    // Exhaust the 5/min rate limit via real requests so the key format matches production exactly.
+    for ($i = 0; $i < 5; $i++) {
+        $this->post(route('login.store'), [
+            'email' => $user->email,
+            'password' => 'wrong-password',
+        ]);
+    }
 
     $response = $this->post(route('login.store'), [
         'email' => $user->email,

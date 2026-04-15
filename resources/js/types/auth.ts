@@ -24,7 +24,7 @@ export type AuthPermissions = {
 };
 
 export type Auth = {
-    user: User;
+    user: User | null;
     can: AuthPermissions;
 };
 

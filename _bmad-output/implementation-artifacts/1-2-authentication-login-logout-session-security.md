@@ -420,6 +420,49 @@ resources/js/pages/Settings/Profile.vue (MODIFIED)
 tests/Feature/Auth/AuthenticationTest.php (MODIFIED)
 tests/Feature/Auth/SessionTest.php (NEW)
 
+## Review Findings
+
+_Code review — 2026-04-15 | Sources: Blind Hunter · Edge Case Hunter · Acceptance Auditor_
+
+### Cần quyết định (Decision Needed)
+
+_(Tất cả đã được resolve — xem Patch section)_
+
+### Cần fix (Patch)
+
+- [x] [Review][Patch] DN1→P: Profile.vue — đổi sang `useForm` + `v-model` thay `:default-value` — **SKIPPED**: form dùng pattern `ProfileController.update.form()` không tương thích với `useForm` tiêu chuẩn; cần đánh giá riêng
+- [x] [Review][Patch] DN2→P: LoginResponse — thêm `wantsJson()` branch trả JSON cho API consumers ✅ [app/Http/Responses/LoginResponse.php]
+- [x] [Review][Patch] DN3→P: HandleInertiaRequests — wrap `$user` bằng `->only([...])` để whitelist fields gửi lên frontend ✅ [app/Http/Middleware/HandleInertiaRequests.php]
+- [x] [Review][Patch] DN4→P: `last_login_at` — chuyển update sang `Login` event listener (`app/Listeners/UpdateLastLoginAt.php`), bỏ khỏi `AuthenticateUser` callback ✅
+- [x] [Review][Patch] DN5→P: Thêm `SessionTimeout` middleware — **SKIPPED**: project dùng `SESSION_DRIVER=redis`; Laravel Redis session driver tự động renew TTL trên mỗi request → inactivity-based timeout đã hoạt động mặc định; middleware bổ sung là redundant
+- [x] [Review][Patch] P1: Timing side-channel — thêm dummy `Hash::check()` trên user-not-found path ✅ [app/Actions/Fortify/AuthenticateUser.php]
+- [x] [Review][Patch] P2: `forceFill()->save()` → `updateQuietly()` ✅ (handled by DN4 — update moved to listener using `updateQuietly`)
+- [x] [Review][Patch] P3: TypeScript `Auth.user` → `User | null` ✅ [resources/js/types/auth.ts]
+- [x] [Review][Patch] P4: AppHeader.vue `auth.user.avatar` → `auth.user?.avatar` ✅ [resources/js/components/AppHeader.vue]
+- [x] [Review][Patch] P5: Bỏ `!` non-null assertion trên `user.avatar` trong UserInfo.vue ✅ [resources/js/components/UserInfo.vue]
+- [x] [Review][Patch] P6: Fix rate-limiter test key — dùng `Str::transliterate(Str::lower($email).'|'.$ip)` thay md5 ✅ [tests/Feature/Auth/AuthenticationTest.php]
+- [x] [Review][Patch] P7: two-factor rate limiter fallback `?? $request->ip()` khi `login.id` null ✅ [app/Providers/FortifyServiceProvider.php]
+- [x] [Review][Patch] P8: `auth.can` guest → object với 9 keys = false (thay `[]`) ✅ [app/Http/Middleware/HandleInertiaRequests.php]
+- [x] [Review][Patch] P9: Thêm `two_factor_confirmed_at` vào `User::$hidden` ✅ [app/Models/User.php]
+- [x] [Review][Patch] P10: Test inactive user — thêm assert error message = `auth.failed` ✅ [tests/Feature/Auth/AuthenticationTest.php]
+- [x] [Review][Patch] P11: Thêm test `last_login_at not updated for inactive user` ✅ [tests/Feature/Auth/AuthenticationTest.php]
+- [x] [Review][Patch] P12: Thêm `SESSION_SECURE_COOKIE=false` vào `.env.example` với comment production ✅
+- [x] [Review][Patch] P13: Fix test `unauthenticated user auth.can` — thêm `assertInertia` kiểm tra permissions = false ✅ [tests/Feature/Auth/SessionTest.php]
+
+### Deferred
+
+- [x] [Review][Defer] D1: `Fortify::authenticateUsing(app(AuthenticateUser::class))` — eager resolution tại boot time, không thể swap trong test bằng bind — deferred, minor architectural, no immediate bug [app/Providers/FortifyServiceProvider.php:47]
+- [x] [Review][Defer] D2: 9 × `$user->can()` mỗi request — tiềm năng N+1 nếu Redis cache cold; ADR-010 xử lý qua Spatie Redis cache — deferred, pre-existing, optimize nếu performance issue xuất hiện [app/Http/Middleware/HandleInertiaRequests.php:45]
+- [x] [Review][Defer] D3: Thiếu test "soft-deleted user không thể login" — SoftDeletes scope xử lý implicitly nhưng không có explicit test — deferred, pre-existing
+- [x] [Review][Defer] D4: `redirect()->intended()` có thể follow external URL nếu Host header bị manipulate — framework-level risk, ngoài scope story — deferred, pre-existing
+- [x] [Review][Defer] D5: Không có test assert GET /logout trả về 405 — Fortify xử lý routing, low risk — deferred, pre-existing
+- [x] [Review][Defer] D6: Rate-limit key dùng `$request->ip()` có thể spoofable nếu TrustProxies không config đúng — infrastructure concern — deferred, pre-existing (noted từ story 1.1)
+- [x] [Review][Defer] D7: Thiếu functional test simulate session expiry → redirect /login — hard to test in feature tests, AC3 config verified — deferred, pre-existing
+- [x] [Review][Defer] D8: `verified` middleware no-op vì `User` không implement `MustVerifyEmail` — ngoài scope story 1.2 — deferred, pre-existing
+- [x] [Review][Defer] D9: ADR-026 (no Sanctum) — không thể verify từ code hiện tại — deferred, structural
+- [x] [Review][Defer] D10: ADR-010 (Redis cache) — không thể verify từ code; cần query count assertion — deferred, structural
+- [x] [Review][Defer] D11: ADR-019 (Policy authoritative) — Policy chưa được implement; sẽ có trong các Epic sau — deferred, future stories
+
 ## Change Log
 
 - 2026-04-13: Story 1.2 implemented by claude-sonnet-4-6. Tất cả 6 tasks hoàn thành. 3 files PHP mới (AuthenticateUser, LoginResponse, LogoutResponse), 2 files PHP sửa (FortifyServiceProvider, HandleInertiaRequests), 1 file TS sửa (auth.ts), 3 Vue components sửa (UserInfo, AppHeader, Profile), 1 test file sửa (AuthenticationTest), 1 test file mới (SessionTest). 61 tests PASS.
