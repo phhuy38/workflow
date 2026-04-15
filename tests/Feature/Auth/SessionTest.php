@@ -48,10 +48,14 @@ test('admin has all permissions in auth.can', function () {
     );
 });
 
-test('unauthenticated user has empty auth.can in inertia props', function () {
+test('unauthenticated user has all-false auth.can in inertia props', function () {
     $response = $this->get(route('login'));
 
-    // Login page là guest route — không có auth user, auth.can nên là array rỗng
-    // Kiểm tra qua dashboard redirect — không authenticated nên redirect về login
     $response->assertOk();
+    // AC8: guest users receive auth.can as an object with all permissions = false
+    $response->assertInertia(fn ($page) => $page
+        ->where('auth.can.manage_templates', false)
+        ->where('auth.can.manage_users', false)
+        ->where('auth.can.manage_system', false)
+    );
 });
