@@ -3,10 +3,12 @@
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Support\Facades\Log;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -26,5 +28,17 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Log all authorization violations (AC4, NFR6)
+        $exceptions->report(function (AuthorizationException $e): void {
+            $request = request();
+            Log::warning('UNAUTHORIZED_ACCESS_DENIED', [
+                'user_id' => auth()->id(),
+                'path' => $request->path(),
+                'method' => $request->method(),
+                'ip' => $request->ip(),
+                'message' => $e->getMessage(),
+            ]);
+            // P1: Re-throw to ensure 403 response reaches client
+            throw $e;
+        });
     })->create();

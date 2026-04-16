@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-12
-last_updated: 2026-04-13
+last_updated: 2026-04-16
 project: workflow
 
 project_key: NOKEY
@@ -46,9 +46,9 @@ development_status:
   # ─── Epic 1: Foundation, Infrastructure & System Administration ───
   epic-1: in-progress
   1-1-initialize-project-configure-development-infrastructure: done
-  1-2-authentication-login-logout-session-security: review
-  1-3-role-based-access-control-5-roles-policy-layer: backlog
-  1-4-admin-user-account-management: backlog
+  1-2-authentication-login-logout-session-security: done
+  1-3-role-based-access-control-5-roles-policy-layer: done
+  1-4-admin-user-account-management: done
   1-5-system-configuration-smtp-session-settings: backlog
   epic-1-retrospective: optional
 
