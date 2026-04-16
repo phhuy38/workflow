@@ -16,7 +16,11 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->beforeEach(fn () => $this->withoutVite())
+    ->beforeEach(function () {
+        $this->withoutVite();
+        // P2: Clear spatie permission cache to prevent race condition between tests
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    })
     ->in('Feature');
 
 /*
