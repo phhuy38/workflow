@@ -49,7 +49,7 @@ development_status:
   1-2-authentication-login-logout-session-security: done
   1-3-role-based-access-control-5-roles-policy-layer: done
   1-4-admin-user-account-management: done
-  1-5-system-configuration-smtp-session-settings: backlog
+  1-5-system-configuration-smtp-session-settings: done
   epic-1-retrospective: optional
 
   # ─── Epic 2: Process Template Management ───
