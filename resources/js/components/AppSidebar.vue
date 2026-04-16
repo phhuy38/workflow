@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid, Users } from 'lucide-vue-next';
+import { BookOpen, FolderGit2, LayoutGrid, Settings, Users } from 'lucide-vue-next';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -18,6 +18,7 @@ import {
 import { usePermission } from '@/composables/usePermission';
 import { dashboard } from '@/routes';
 import { index as usersIndex } from '@/routes/admin/users';
+import { index as systemIndex } from '@/routes/admin/system';
 import type { NavItem } from '@/types';
 
 const { can } = usePermission();
@@ -39,6 +40,14 @@ const mainNavItems = computed((): NavItem[] => {
             title: 'User Management',
             href: usersIndex().url,
             icon: Users,
+        });
+    }
+
+    if (can('manage_system')) {
+        items.push({
+            title: 'System Settings',
+            href: systemIndex().url,
+            icon: Settings,
         });
     }
 
