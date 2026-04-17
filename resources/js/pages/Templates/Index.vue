@@ -22,7 +22,7 @@ interface Props {
     can: { create: boolean };
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 defineOptions({
     layout: {
@@ -48,7 +48,11 @@ function submitCreate() {
 
 function getFlash(key: string): string | null {
     const flash = page.props.flash as Record<string, unknown> | undefined;
-    if (!flash || typeof flash[key] !== 'string') return null;
+
+    if (!flash || typeof flash[key] !== 'string') {
+return null;
+}
+
     return flash[key];
 }
 

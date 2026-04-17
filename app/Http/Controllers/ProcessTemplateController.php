@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Template\StoreTemplateRequest;
 use App\Http\Resources\ProcessTemplateResource;
+use App\Http\Resources\StepDefinitionResource;
 use App\Models\ProcessTemplate;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -44,10 +45,11 @@ class ProcessTemplateController extends Controller
     {
         $this->authorize('view', $processTemplate); // DÒNG ĐẦU TIÊN
 
-        $processTemplate->loadCount('stepDefinitions');
+        $processTemplate->load('stepDefinitions');
 
         return Inertia::render('Templates/Show', [
             'template' => ProcessTemplateResource::make($processTemplate),
+            'steps' => StepDefinitionResource::collection($processTemplate->stepDefinitions)->resolve(),
             'can' => [
                 'update' => auth()->user()->can('update', $processTemplate),
                 'delete' => auth()->user()->can('delete', $processTemplate),

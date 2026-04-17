@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProcessTemplateController;
+use App\Http\Controllers\StepDefinitionController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
@@ -17,6 +18,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Story 2.1: Template management (only: index, store, show — update/destroy added in 2.3)
     Route::resource('process-templates', ProcessTemplateController::class)
         ->only(['index', 'store', 'show']);
+
+    // Story 2.2: Step definition management
+    Route::resource('step-definitions', StepDefinitionController::class)
+        ->only(['store', 'update', 'destroy']);
+    Route::patch('step-definitions/{step_definition}/reorder', [StepDefinitionController::class, 'reorder'])
+        ->name('step-definitions.reorder');
 });
 
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {

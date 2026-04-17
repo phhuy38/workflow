@@ -1,5 +1,6 @@
 export * from './auth';
 export * from './navigation';
+export * from './step';
 export * from './ui';
 
 export interface ProcessTemplate {
