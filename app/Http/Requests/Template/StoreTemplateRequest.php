@@ -26,6 +26,13 @@ class StoreTemplateRequest extends FormRequest
         ];
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'name' => trim($this->name ?? ''),
+        ]);
+    }
+
     public function messages(): array
     {
         return [

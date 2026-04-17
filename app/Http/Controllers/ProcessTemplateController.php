@@ -29,11 +29,10 @@ class ProcessTemplateController extends Controller
 
     public function store(StoreTemplateRequest $request): RedirectResponse
     {
-        $this->authorize('create', ProcessTemplate::class); // DÒNG ĐẦU TIÊN
-
         $template = ProcessTemplate::create([
             ...$request->validated(),
-            'created_by' => auth()->id(),
+            'created_by' => auth()->user()->id,
+            'version' => 1,
         ]);
 
         return redirect()
@@ -43,7 +42,7 @@ class ProcessTemplateController extends Controller
 
     public function show(ProcessTemplate $processTemplate): Response
     {
-        $this->authorize('update', $processTemplate); // DÒNG ĐẦU TIÊN
+        $this->authorize('view', $processTemplate); // DÒNG ĐẦU TIÊN
 
         $processTemplate->loadCount('stepDefinitions');
 

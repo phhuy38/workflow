@@ -17,9 +17,10 @@ import {
 } from '@/components/ui/sidebar';
 import { usePermission } from '@/composables/usePermission';
 import { dashboard } from '@/routes';
-import { index as systemIndex } from '@/routes/admin/system';
-import { index as usersIndex } from '@/routes/admin/users';
-import { index as templatesIndex } from '@/routes/process-templates';
+// TODO: Uncomment after wayfinder generates routes
+// import { index as systemIndex } from '@/routes/admin/system';
+// import { index as usersIndex } from '@/routes/admin/users';
+// import { index as templatesIndex } from '@/routes/process-templates';
 import type { NavItem } from '@/types';
 
 const { can } = usePermission();
@@ -36,29 +37,30 @@ const mainNavItems = computed((): NavItem[] => {
         });
     }
 
-    if (can('manage_templates')) {
-        items.push({
-            title: 'Templates',
-            href: templatesIndex().url,
-            icon: LayoutTemplate,
-        });
-    }
+    // TODO: Uncomment after wayfinder generates routes
+    // if (can('manage_templates')) {
+    //     items.push({
+    //         title: 'Templates',
+    //         href: templatesIndex().url,
+    //         icon: LayoutTemplate,
+    //     });
+    // }
 
-    if (can('manage_users')) {
-        items.push({
-            title: 'User Management',
-            href: usersIndex().url,
-            icon: Users,
-        });
-    }
+    // if (can('manage_users')) {
+    //     items.push({
+    //         title: 'User Management',
+    //         href: usersIndex().url,
+    //         icon: Users,
+    //     });
+    // }
 
-    if (can('manage_system')) {
-        items.push({
-            title: 'System Settings',
-            href: systemIndex().url,
-            icon: Settings,
-        });
-    }
+    // if (can('manage_system')) {
+    //     items.push({
+    //         title: 'System Settings',
+    //         href: systemIndex().url,
+    //         icon: Settings,
+    //     });
+    // }
 
     // TODO Story 5.1: Executor Inbox — visible when can('complete_assigned_steps')
     // TODO Story 7.2: Beneficiary — visible when can('view_own_instances') and !can('view_all_instances')

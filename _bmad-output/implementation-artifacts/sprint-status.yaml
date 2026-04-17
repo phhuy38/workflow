@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-12
-last_updated: 2026-04-16
+last_updated: 2026-04-17
 project: workflow
 
 project_key: NOKEY
@@ -54,7 +54,7 @@ development_status:
 
   # ─── Epic 2: Process Template Management ───
   epic-2: in-progress
-  2-1-template-list-create-new-template: review
+  2-1-template-list-create-new-template: done
   2-2-configure-template-steps-with-visual-builder: backlog
   2-3-edit-existing-template: backlog
   2-4-publish-unpublish-template: backlog

@@ -11,10 +11,12 @@ interface Can {
     publish: boolean;
 }
 
-const props = defineProps<{
+interface Props {
     template: ProcessTemplate;
     can: Can;
-}>();
+}
+
+const props = defineProps<Props>();
 
 defineOptions({
     layout: {
@@ -27,6 +29,12 @@ defineOptions({
 });
 
 const page = usePage();
+
+function getFlash(key: string): string | null {
+    const flash = page.props.flash as Record<string, unknown> | undefined;
+    if (!flash || typeof flash[key] !== 'string') return null;
+    return flash[key];
+}
 
 function formatDate(isoString: string): string {
     return new Date(isoString).toLocaleDateString('vi-VN', {
@@ -45,10 +53,10 @@ function formatDate(isoString: string): string {
     <div class="flex flex-col gap-6 p-6">
         <!-- Flash success message -->
         <div
-            v-if="(page.props.flash as Record<string, string>)?.success"
+            v-if="getFlash('success')"
             class="rounded-md bg-green-50 p-4 text-sm text-green-700 border border-green-200"
         >
-            {{ (page.props.flash as Record<string, string>).success }}
+            {{ getFlash('success') }}
         </div>
 
         <!-- Template header -->

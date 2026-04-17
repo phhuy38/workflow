@@ -17,10 +17,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { index as templatesIndex, store as templatesStore, show as templatesShow } from '@/routes/process-templates';
 import type { ProcessTemplate } from '@/types';
 
-defineProps<{
+interface Props {
     templates: ProcessTemplate[];
     can: { create: boolean };
-}>();
+}
+
+const props = defineProps<Props>();
 
 defineOptions({
     layout: {
@@ -44,6 +46,12 @@ function submitCreate() {
     });
 }
 
+function getFlash(key: string): string | null {
+    const flash = page.props.flash as Record<string, unknown> | undefined;
+    if (!flash || typeof flash[key] !== 'string') return null;
+    return flash[key];
+}
+
 function formatDate(isoString: string): string {
     return new Date(isoString).toLocaleDateString('vi-VN', {
         day: '2-digit',
@@ -63,10 +71,10 @@ function formatDate(isoString: string): string {
 
         <!-- Flash success message -->
         <div
-            v-if="(page.props.flash as Record<string, string>)?.success"
+            v-if="getFlash('success')"
             class="rounded-md bg-green-50 p-4 text-sm text-green-700 border border-green-200"
         >
-            {{ (page.props.flash as Record<string, string>).success }}
+            {{ getFlash('success') }}
         </div>
 
         <!-- Create form -->

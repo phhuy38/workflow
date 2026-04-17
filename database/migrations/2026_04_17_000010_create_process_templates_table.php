@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -10,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('process_templates', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();
+            $table->string('name');
             $table->text('description')->nullable();
             $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
             $table->boolean('is_published')->default(false);
@@ -19,6 +20,9 @@ return new class extends Migration
             $table->softDeletes();
             $table->timestamps();
         });
+
+        // Unique constraint on name excluding soft-deleted records per AC4 spec
+        DB::statement('CREATE UNIQUE INDEX idx_process_templates_name ON process_templates (name) WHERE deleted_at IS NULL');
     }
 
     public function down(): void

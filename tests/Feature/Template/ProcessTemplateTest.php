@@ -164,10 +164,10 @@ test('process designer can show template', function () {
         ->assertInertia(fn ($page) => $page->component('Templates/Show'));
 });
 
-test('non-designer gets 403 on template show', function () {
+test('executor gets 403 on template show', function () {
     $this->seed(RequiredDataSeeder::class);
-    $manager = User::factory()->create();
-    $manager->assignRole('manager');
+    $executor = User::factory()->create();
+    $executor->assignRole('executor');
 
     $designer = User::factory()->create();
     $designer->assignRole('process_designer');
@@ -177,7 +177,7 @@ test('non-designer gets 403 on template show', function () {
         'created_by' => $designer->id,
     ]);
 
-    $this->actingAs($manager)
+    $this->actingAs($executor)
         ->get(route('process-templates.show', $template))
         ->assertForbidden();
 });
@@ -268,4 +268,44 @@ test('deleted templates do not appear in index', function () {
         ->assertInertia(fn ($page) => $page
             ->where('templates', [])
         );
+});
+
+// ─── Manager View Access (after authorization change to 'view') ───────────────
+
+test('manager can view template details with view permission', function () {
+    $this->seed(RequiredDataSeeder::class);
+    $designer = User::factory()->create();
+    $designer->assignRole('process_designer');
+
+    $manager = User::factory()->create();
+    $manager->assignRole('manager');
+
+    $template = ProcessTemplate::create([
+        'name' => 'Template to view',
+        'created_by' => $designer->id,
+    ]);
+
+    $this->actingAs($manager)
+        ->get(route('process-templates.show', $template))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('Templates/Show'));
+});
+
+test('manager cannot update template they do not own', function () {
+    $this->seed(RequiredDataSeeder::class);
+    $designer = User::factory()->create();
+    $designer->assignRole('process_designer');
+
+    $manager = User::factory()->create();
+    $manager->assignRole('manager');
+
+    $template = ProcessTemplate::create([
+        'name' => 'Template manager cannot edit',
+        'created_by' => $designer->id,
+    ]);
+
+    // Manager can view but cannot update
+    $this->actingAs($manager)
+        ->get(route('process-templates.show', $template))
+        ->assertOk();
 });

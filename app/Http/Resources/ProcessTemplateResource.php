@@ -14,7 +14,7 @@ class ProcessTemplateResource extends JsonResource
             'name' => $this->name,
             'description' => $this->description,
             'is_published' => $this->is_published,
-            'step_count' => $this->step_definitions_count ?? $this->stepDefinitions()->count(),
+            'step_count' => (int) $this->step_definitions_count,
             'created_at' => $this->created_at->toISOString(),
             'version' => $this->version,
         ];
