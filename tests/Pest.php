@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /*
@@ -19,7 +20,7 @@ pest()->extend(TestCase::class)
     ->beforeEach(function () {
         $this->withoutVite();
         // P2: Clear spatie permission cache to prevent race condition between tests
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
     })
     ->in('Feature');
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
 import { Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
 import { Loader2 } from 'lucide-vue-next';
+import { ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -67,6 +67,7 @@ function submit() {
     if (!form.smtp_password) {
         form.smtp_password = PASSWORD_PLACEHOLDER;
     }
+
     form.put(systemUpdate().url);
 }
 

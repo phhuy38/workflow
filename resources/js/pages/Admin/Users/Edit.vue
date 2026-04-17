@@ -51,7 +51,10 @@ function submit() {
 }
 
 function handleDeactivate() {
-    if (!confirm(`Deactivate user "${props.user.full_name}"?`)) return;
+    if (!confirm(`Deactivate user "${props.user.full_name}"?`)) {
+return;
+}
+
     router.post(deactivateUser({ user: props.user.id }).url);
 }
 
@@ -64,7 +67,10 @@ function handleAssignDesigner() {
 }
 
 function handleRevokeDesigner() {
-    if (!confirm(`Remove Process Designer role from "${props.user.full_name}"?`)) return;
+    if (!confirm(`Remove Process Designer role from "${props.user.full_name}"?`)) {
+return;
+}
+
     router.post(revokeDesigner({ user: props.user.id }).url, {}, { preserveState: false });
 }
 </script>

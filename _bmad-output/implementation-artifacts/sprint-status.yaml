@@ -54,7 +54,7 @@ development_status:
 
   # ─── Epic 2: Process Template Management ───
   epic-2: in-progress
-  2-1-template-list-create-new-template: ready-for-dev
+  2-1-template-list-create-new-template: review
   2-2-configure-template-steps-with-visual-builder: backlog
   2-3-edit-existing-template: backlog
   2-4-publish-unpublish-template: backlog

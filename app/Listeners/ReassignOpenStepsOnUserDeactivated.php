@@ -20,7 +20,7 @@ class ReassignOpenStepsOnUserDeactivated
             ->whereIn('status', ['pending', 'in_progress'])
             ->update([
                 'assigned_to' => null,
-                'status'      => 'pending',
+                'status' => 'pending',
             ]);
     }
 }

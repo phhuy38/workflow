@@ -38,7 +38,7 @@ class ProcessInstancePolicy
      */
     private function isExecutorAssignedToInstance(User $user, mixed $instance): bool
     {
-        if (!is_object($instance) || !method_exists($instance, 'stepExecutions')) {
+        if (! is_object($instance) || ! method_exists($instance, 'stepExecutions')) {
             return false;
         }
 
@@ -53,7 +53,7 @@ class ProcessInstancePolicy
      */
     private function isBeneficiaryForInstance(User $user, mixed $instance): bool
     {
-        if (!is_object($instance)) {
+        if (! is_object($instance)) {
             return false;
         }
 

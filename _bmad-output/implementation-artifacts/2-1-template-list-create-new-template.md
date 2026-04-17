@@ -1,6 +1,6 @@
 # Story 2.1: Template List & Create New Template (FR1, FR5)
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -33,35 +33,35 @@ so that I can start building workflows for the organization.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Database Migrations (AC1 — số bước cần step_definitions table)
-  - [ ] Tạo migration `process_templates` table: `id`, `name` (string, unique), `description` (text, nullable), `created_by` (FK users), `is_published` (bool, default false), `published_at` (timestamp, nullable), `version` (int, default 1), `deleted_at`, timestamps
-  - [ ] Tạo migration `step_definitions` table: `id`, `template_id` (FK, restrictOnDelete), `name` (string), `description` (text, nullable), `order` (int), `assignee_type` (enum: user|role|department), `assignee_id` (nullable), `duration_hours` (int, NOT NULL DEFAULT 24), `is_required` (bool, default true), `config_data` (json, nullable), `deleted_at`, timestamps
-  - [ ] Unique constraint: `['template_id', 'order']` trong step_definitions
+- [x] Task 1: Database Migrations (AC1 — số bước cần step_definitions table)
+  - [x] Tạo migration `process_templates` table: `id`, `name` (string, unique), `description` (text, nullable), `created_by` (FK users), `is_published` (bool, default false), `published_at` (timestamp, nullable), `version` (int, default 1), `deleted_at`, timestamps
+  - [x] Tạo migration `step_definitions` table: `id`, `template_id` (FK, restrictOnDelete), `name` (string), `description` (text, nullable), `order` (int), `assignee_type` (enum: user|role|department), `assignee_id` (nullable), `duration_hours` (int, NOT NULL DEFAULT 24), `is_required` (bool, default true), `config_data` (json, nullable), `deleted_at`, timestamps
+  - [x] Unique constraint: `['template_id', 'order']` trong step_definitions
 
-- [ ] Task 2: Backend Models
-  - [ ] Tạo `app/Models/ProcessTemplate.php`: SoftDeletes, LogsActivity, HasMany stepDefinitions, scope `published()`
-  - [ ] Tạo `app/Models/StepDefinition.php`: SoftDeletes, BelongsTo processTemplate
+- [x] Task 2: Backend Models
+  - [x] Tạo `app/Models/ProcessTemplate.php`: SoftDeletes, LogsActivity, HasMany stepDefinitions, scope `published()`
+  - [x] Tạo `app/Models/StepDefinition.php`: SoftDeletes, BelongsTo processTemplate
 
-- [ ] Task 3: Backend Controller + FormRequest + API Resource (AC1, AC2, AC4)
-  - [ ] Tạo `app/Http/Controllers/ProcessTemplateController.php` với `index()`, `store()`, `show()` methods
-  - [ ] Tạo `app/Http/Requests/Template/StoreTemplateRequest.php` với validation rules (unique name check)
-  - [ ] Tạo `app/Http/Resources/ProcessTemplateResource.php`
+- [x] Task 3: Backend Controller + FormRequest + API Resource (AC1, AC2, AC4)
+  - [x] Tạo `app/Http/Controllers/ProcessTemplateController.php` với `index()`, `store()`, `show()` methods
+  - [x] Tạo `app/Http/Requests/Template/StoreTemplateRequest.php` với validation rules (unique name check)
+  - [x] Tạo `app/Http/Resources/ProcessTemplateResource.php`
 
-- [ ] Task 4: Routes + Wayfinder Regeneration (AC2, AC3)
-  - [ ] Thêm `Route::resource('process-templates', ProcessTemplateController::class)->only(['index', 'store', 'show'])` vào `routes/web.php` trong auth+verified middleware group
-  - [ ] Chạy `php artisan wayfinder:generate` để tạo TypeScript route files
+- [x] Task 4: Routes + Wayfinder Regeneration (AC2, AC3)
+  - [x] Thêm `Route::resource('process-templates', ProcessTemplateController::class)->only(['index', 'store', 'show'])` vào `routes/web.php` trong auth+verified middleware group
+  - [x] Chạy `php artisan wayfinder:generate` để tạo TypeScript route files
 
-- [ ] Task 5: Frontend — Templates/Index.vue (AC1, AC2, AC4)
-  - [ ] Tạo `resources/js/pages/Templates/Index.vue`: hiển thị template list (name, status badge, step count, created_at) + inline create form (name, description)
+- [x] Task 5: Frontend — Templates/Index.vue (AC1, AC2, AC4)
+  - [x] Tạo `resources/js/pages/Templates/Index.vue`: hiển thị template list (name, status badge, step count, created_at) + inline create form (name, description)
 
-- [ ] Task 6: Frontend — Templates/Show.vue (AC2 — redirect target)
-  - [ ] Tạo `resources/js/pages/Templates/Show.vue`: placeholder page hiển thị template name, description, status. Steps section sẽ được implement trong Story 2.2
+- [x] Task 6: Frontend — Templates/Show.vue (AC2 — redirect target)
+  - [x] Tạo `resources/js/pages/Templates/Show.vue`: placeholder page hiển thị template name, description, status. Steps section sẽ được implement trong Story 2.2
 
-- [ ] Task 7: Sidebar Navigation
-  - [ ] Cập nhật `resources/js/components/AppSidebar.vue`: thêm "Templates" link khi `can('manage_templates')`
+- [x] Task 7: Sidebar Navigation
+  - [x] Cập nhật `resources/js/components/AppSidebar.vue`: thêm "Templates" link khi `can('manage_templates')`
 
-- [ ] Task 8: Tests (tất cả ACs)
-  - [ ] Tạo `tests/Feature/Template/ProcessTemplateTest.php` với tests cho tất cả ACs + security tests
+- [x] Task 8: Tests (tất cả ACs)
+  - [x] Tạo `tests/Feature/Template/ProcessTemplateTest.php` với tests cho tất cả ACs + security tests
 
 ## Dev Notes
 
@@ -477,6 +477,36 @@ claude-sonnet-4-6
 
 ### Debug Log References
 
+- `Spatie\Activitylog\Traits\LogsActivity` namespace không tồn tại trong v5.0. Namespace thực: `Spatie\Activitylog\Models\Concerns\LogsActivity`. Tương tự: `LogOptions` ở `Spatie\Activitylog\Support\LogOptions`.
+- `ProcessTemplateResource::collection()->resolve()` dùng để trả về plain array (không có wrapper `data`) cho Inertia props — cần thiết vì frontend prop type là `ProcessTemplate[]`.
+- `shadcn-vue` components `table` và `textarea` chưa được install — cần chạy `npx shadcn-vue@latest add table textarea`.
+
 ### Completion Notes List
 
+- Implement 11 files: 2 migrations, 2 models, 1 controller, 1 form request, 1 API resource, 2 Vue pages, sidebar update, routes, wayfinder routes, test file
+- 18 tests mới (64 assertions) — tất cả pass
+- 142 total tests pass (0 failures, 0 regressions)
+- Pint + ESLint đều pass sau auto-fix
+
 ### File List
+
+- `database/migrations/2026_04_17_000010_create_process_templates_table.php` (NEW)
+- `database/migrations/2026_04_17_000011_create_step_definitions_table.php` (NEW)
+- `app/Models/ProcessTemplate.php` (NEW)
+- `app/Models/StepDefinition.php` (NEW)
+- `app/Http/Controllers/ProcessTemplateController.php` (NEW)
+- `app/Http/Requests/Template/StoreTemplateRequest.php` (NEW)
+- `app/Http/Resources/ProcessTemplateResource.php` (NEW)
+- `resources/js/pages/Templates/Index.vue` (NEW)
+- `resources/js/pages/Templates/Show.vue` (NEW)
+- `resources/js/components/AppSidebar.vue` (MODIFIED: thêm Templates link)
+- `routes/web.php` (MODIFIED: thêm process-templates resource route)
+- `resources/js/routes/process-templates/index.ts` (GENERATED by wayfinder)
+- `resources/js/types/index.ts` (MODIFIED: thêm ProcessTemplate type)
+- `resources/js/components/ui/table/` (NEW: shadcn-vue table component)
+- `resources/js/components/ui/textarea/` (NEW: shadcn-vue textarea component)
+- `tests/Feature/Template/ProcessTemplateTest.php` (NEW)
+
+### Change Log
+
+- 2026-04-17: Implement Story 2.1 — Template List & Create New Template (FR1, FR5)

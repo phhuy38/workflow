@@ -43,8 +43,8 @@ class UserController extends Controller
 
         $user = User::create([
             'full_name' => $request->full_name,
-            'email'     => $request->email,
-            'password'  => Hash::make($request->password),
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
             'is_active' => true,
         ]);
 
@@ -82,7 +82,7 @@ class UserController extends Controller
 
         $user->update([
             'full_name' => $request->full_name,
-            'email'     => $request->email,
+            'email' => $request->email,
         ]);
 
         return redirect()->route('admin.users.index')

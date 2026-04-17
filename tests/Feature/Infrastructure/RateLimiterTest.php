@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
 
 it('has auth rate limiter registered at 5 per minute', function () {

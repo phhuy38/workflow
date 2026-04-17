@@ -43,9 +43,9 @@ test('admin can create a new user', function () {
     $this->actingAs($admin)
         ->post(route('admin.users.store'), [
             'full_name' => 'Jane Doe',
-            'email'     => 'jane@example.com',
-            'password'  => 'password123',
-            'role'      => 'executor',
+            'email' => 'jane@example.com',
+            'password' => 'password123',
+            'role' => 'executor',
         ])
         ->assertRedirect(route('admin.users.index'));
 
@@ -72,9 +72,9 @@ test('store rejects admin role assignment', function () {
     $this->actingAs($admin)
         ->post(route('admin.users.store'), [
             'full_name' => 'Hacker',
-            'email'     => 'hacker@example.com',
-            'password'  => 'password123',
-            'role'      => 'admin',
+            'email' => 'hacker@example.com',
+            'password' => 'password123',
+            'role' => 'admin',
         ])
         ->assertSessionHasErrors(['role']);
 });
@@ -92,7 +92,7 @@ test('admin can update user basic info', function () {
     $this->actingAs($admin)
         ->put(route('admin.users.update', $target), [
             'full_name' => 'New Name',
-            'email'     => $target->email,
+            'email' => $target->email,
         ])
         ->assertRedirect(route('admin.users.index'));
 
@@ -174,7 +174,7 @@ test('deactivated user cannot login after admin deactivation', function () {
     // Deactivated user attempts login
     auth()->logout();
     $this->post(route('login.store'), [
-        'email'    => $user->email,
+        'email' => $user->email,
         'password' => 'password',
     ]);
 

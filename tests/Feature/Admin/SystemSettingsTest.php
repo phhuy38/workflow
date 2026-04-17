@@ -3,6 +3,7 @@
 use App\Models\SystemSetting;
 use App\Models\User;
 use Database\Seeders\RequiredDataSeeder;
+use Illuminate\Support\Facades\Config;
 use Spatie\Activitylog\Models\Activity;
 
 // ─── AC1: Admin lưu SMTP settings ─────────────────────────────────────────────
@@ -240,9 +241,9 @@ test('middleware applies smtp config at runtime', function () {
     $this->actingAs($admin)->get(route('admin.system.index'));
 
     // Verify config was set by middleware
-    expect(\Illuminate\Support\Facades\Config::get('mail.mailers.smtp.host'))->toBe('smtp.example.com');
-    expect(\Illuminate\Support\Facades\Config::get('mail.mailers.smtp.port'))->toBe(587);
-    expect(\Illuminate\Support\Facades\Config::get('mail.mailers.smtp.encryption'))->toBe('tls');
+    expect(Config::get('mail.mailers.smtp.host'))->toBe('smtp.example.com');
+    expect(Config::get('mail.mailers.smtp.port'))->toBe(587);
+    expect(Config::get('mail.mailers.smtp.encryption'))->toBe('tls');
 });
 
 test('middleware applies session lifetime at runtime', function () {
@@ -255,5 +256,5 @@ test('middleware applies session lifetime at runtime', function () {
     $this->actingAs($admin)->get(route('admin.system.index'));
 
     // Verify session lifetime was set by middleware
-    expect(\Illuminate\Support\Facades\Config::get('session.lifetime'))->toBe(30);
+    expect(Config::get('session.lifetime'))->toBe(30);
 });

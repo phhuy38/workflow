@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateSystemSettingsRequest;
 use App\Models\SystemSetting;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -38,7 +39,7 @@ class SystemController extends Controller
         $this->authorize('manage_system');
 
         // Invalidate settings cache when updated
-        \Illuminate\Support\Facades\Cache::forget('system_settings');
+        Cache::forget('system_settings');
 
         app(UpdateSystemSettings::class)->handle(auth()->user(), $request->validated());
 
@@ -59,7 +60,7 @@ class SystemController extends Controller
             }
 
             // Queue test email (matches behavior of business emails)
-            \Illuminate\Support\Facades\Mail::queue(function ($message) use ($adminEmail) {
+            Mail::queue(function ($message) use ($adminEmail) {
                 $message->to($adminEmail)
                     ->subject('[Test] '.config('app.name').' — SMTP Configuration')
                     ->text('Test email from '.config('app.name').'. If you received this, SMTP is configured correctly.');

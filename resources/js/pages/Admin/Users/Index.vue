@@ -51,7 +51,10 @@ defineOptions({
 });
 
 function handleDeactivate(user: UserData) {
-    if (!confirm(`Deactivate user "${user.full_name}"?`)) return;
+    if (!confirm(`Deactivate user "${user.full_name}"?`)) {
+return;
+}
+
     router.post(deactivateUser({ user: user.id }).url);
 }
 
@@ -67,6 +70,7 @@ function roleColor(role: string): 'default' | 'secondary' | 'destructive' | 'out
         executor: 'outline',
         beneficiary: 'outline',
     };
+
     return map[role] ?? 'outline';
 }
 </script>

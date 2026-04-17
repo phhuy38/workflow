@@ -24,7 +24,7 @@ class UpdateSystemSettingsRequest extends FormRequest
                 'max:65535',
                 function ($attribute, $value, $fail) {
                     // If smtp_host is set, smtp_port should be required
-                    if (!empty($this->input('smtp_host')) && empty($value)) {
+                    if (! empty($this->input('smtp_host')) && empty($value)) {
                         $fail('The SMTP port is required when SMTP host is configured.');
                     }
                 },
@@ -36,7 +36,7 @@ class UpdateSystemSettingsRequest extends FormRequest
                 'email',
                 function ($attribute, $value, $fail) {
                     // If smtp_host is set, smtp_from_address should be required
-                    if (!empty($this->input('smtp_host')) && empty($value)) {
+                    if (! empty($this->input('smtp_host')) && empty($value)) {
                         $fail('The SMTP from address is required when SMTP host is configured.');
                     }
                 },
@@ -47,7 +47,7 @@ class UpdateSystemSettingsRequest extends FormRequest
                 'in:tls,ssl,none',
                 function ($attribute, $value, $fail) {
                     // If smtp_host is set, smtp_encryption should be required
-                    if (!empty($this->input('smtp_host')) && empty($value)) {
+                    if (! empty($this->input('smtp_host')) && empty($value)) {
                         $fail('The SMTP encryption is required when SMTP host is configured.');
                     }
                 },

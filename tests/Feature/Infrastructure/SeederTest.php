@@ -3,10 +3,11 @@
 use App\Models\User;
 use Database\Seeders\PermissionsSeeder;
 use Database\Seeders\RequiredDataSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 it('seeds all required permissions', function () {
     $this->artisan('db:seed', ['--class' => RequiredDataSeeder::class]);

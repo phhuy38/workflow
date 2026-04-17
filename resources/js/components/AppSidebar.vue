@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid, Settings, Users } from 'lucide-vue-next';
+import { BookOpen, FolderGit2, LayoutGrid, LayoutTemplate, Settings, Users } from 'lucide-vue-next';
+import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -17,8 +17,9 @@ import {
 } from '@/components/ui/sidebar';
 import { usePermission } from '@/composables/usePermission';
 import { dashboard } from '@/routes';
-import { index as usersIndex } from '@/routes/admin/users';
 import { index as systemIndex } from '@/routes/admin/system';
+import { index as usersIndex } from '@/routes/admin/users';
+import { index as templatesIndex } from '@/routes/process-templates';
 import type { NavItem } from '@/types';
 
 const { can } = usePermission();
@@ -32,6 +33,14 @@ const mainNavItems = computed((): NavItem[] => {
             title: 'Dashboard',
             href: dashboard(),
             icon: LayoutGrid,
+        });
+    }
+
+    if (can('manage_templates')) {
+        items.push({
+            title: 'Templates',
+            href: templatesIndex().url,
+            icon: LayoutTemplate,
         });
     }
 
