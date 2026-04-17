@@ -47,12 +47,18 @@ class StepDefinitionController extends Controller
             ->with('success', 'Bước đã xóa.');
     }
 
-    public function reorder(ReorderStepRequest $request, StepDefinition $stepDefinition, ReorderStepDefinition $action): JsonResponse
+    public function reorder(ReorderStepRequest $request, StepDefinition $stepDefinition, ReorderStepDefinition $action): JsonResponse|RedirectResponse
     {
         $steps = $action->handle($stepDefinition, $request->validated()['new_order']);
 
-        return response()->json([
-            'steps' => StepDefinitionResource::collection($steps)->resolve(),
-        ]);
+        if ($request->wantsJson()) {
+            return response()->json([
+                'steps' => StepDefinitionResource::collection($steps)->resolve(),
+            ]);
+        }
+
+        return redirect()
+            ->route('process-templates.show', $stepDefinition->template_id)
+            ->with('success', 'Thứ tự bước đã được cập nhật.');
     }
 }

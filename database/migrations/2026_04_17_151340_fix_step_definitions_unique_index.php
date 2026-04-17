@@ -11,6 +11,8 @@ return new class extends Migration
     {
         // Drop the plain unique index and replace with partial index
         // that excludes soft-deleted rows (same approach as process_templates.name)
+        // Note: MySQL does not support WHERE clause in unique indexes; use raw SQL for SQLite/PostgreSQL.
+        // For MySQL deployments, consider using application-level uniqueness checks or triggers.
         Schema::table('step_definitions', function (Blueprint $table) {
             $table->dropUnique(['template_id', 'order']);
         });

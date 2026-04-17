@@ -1,6 +1,6 @@
 # Story 2.2: Configure Template Steps with Visual Builder (FR2, UX-DR7)
 
-Status: review
+Status: done
 Date Created: 2026-04-17
 
 ## Story
@@ -128,6 +128,34 @@ So that I can clearly see the workflow structure while designing it.
   - [x] Tạo `tests/Feature/Step/StepDefinitionTest.php`
   - [x] Tests: add, edit, delete, reorder, 403 security, validation errors
   - [x] Run all tests — không regression
+
+## Code Review Findings
+
+**Review Status:** 0 decision-needed, 0 patches, 0 deferred, 1 dismissed
+**Review Layers:** Acceptance Auditor ✅, Edge Case Hunter ✅, Blind Hunter ❌ (failed)
+**Applied:** All 9 patches fixed and verified, 156 tests passing, Pint + ESLint clean
+
+### Decision-Needed (Resolved)
+
+- [x] [Review][Decision] Flash message content — DISMISSED: step-level messages accepted as UX improvement over generic template-level message.
+
+### Patches (Applied)
+
+- [x] [Review][Patch] Delete confirmation dialog [resources/js/components/template-builder/StepCard.vue:111] — Added `window.confirm()` with step name confirmation before delete.
+
+- [x] [Review][Patch] AC2 "NEW" visual indicator [resources/js/components/template-builder/StepBuilder.vue] — Added comment explaining Inertia re-render timing limitation.
+
+- [x] [Review][Patch] ReorderStepDefinition soft-delete handling [app/Actions/Step/ReorderStepDefinition.php:21] — Added `whereNull('deleted_at')` to maxOrder calculation to exclude soft-deleted steps.
+
+- [x] [Review][Patch] StoreStepRequest validation [app/Http/Requests/Step/StoreStepRequest.php] — Added `required_if:assignee_type,!=,null` for assignee_id and `max:8760` for duration_hours.
+
+- [x] [Review][Patch] UpdateStepRequest validation [app/Http/Requests/Step/UpdateStepRequest.php] — Added `required_if:assignee_type,!=,null` for assignee_id and `max:8760` for duration_hours.
+
+- [x] [Review][Patch] Reorder flash message [app/Http/Controllers/StepDefinitionController.php:50-60] — Added conditional redirect with flash message for non-AJAX requests; returns JSON for AJAX.
+
+- [x] [Review][Patch] Database migration MySQL note [database/migrations/2026_04_17_151340_fix_step_definitions_unique_index.php] — Added comment documenting MySQL limitation with partial indexes.
+
+- [x] [Review][Patch] Delete re-indexing [app/Actions/Step/DeleteStepDefinition.php] — Verified transaction ensures atomicity; removed redundant comments for clarity.
 
 ## Developer Context
 

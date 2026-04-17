@@ -13,11 +13,8 @@ class DeleteStepDefinition
             $templateId = $step->template_id;
             $deletedOrder = $step->order;
 
-            // Soft delete the step first
             $step->delete();
 
-            // Re-index remaining steps: shift all steps above deleted order down by 1
-            // Use DB::table() to avoid Eloquent unique constraint issues during sequential update
             $remaining = DB::table('step_definitions')
                 ->where('template_id', $templateId)
                 ->whereNull('deleted_at')

@@ -22,8 +22,8 @@ const emit = defineEmits<{
 
 function assigneeLabel(step: StepDefinition): string {
     if (!step.assignee_type) {
-return 'Chưa gán';
-}
+        return 'Chưa gán';
+    }
 
     const typeMap: Record<string, string> = {
         user: 'Người dùng',
@@ -32,6 +32,12 @@ return 'Chưa gán';
     };
 
     return typeMap[step.assignee_type] ?? step.assignee_type;
+}
+
+function confirmDelete(step: StepDefinition) {
+    if (window.confirm(`Bạn có chắc muốn xóa bước "${step.name}"?`)) {
+        emit('delete', step);
+    }
 }
 </script>
 
@@ -108,7 +114,7 @@ return 'Chưa gán';
                     class="h-7 w-7 text-destructive hover:text-destructive"
                     data-test="delete-button"
                     title="Xóa bước"
-                    @click="emit('delete', step)"
+                    @click="confirmDelete(step)"
                 >
                     <Trash2 class="h-4 w-4" />
                 </Button>

@@ -18,8 +18,9 @@ class ReorderStepDefinition
     {
         $templateId = $step->template_id;
         $currentOrder = $step->order;
-        $maxOrder = StepDefinition::where('template_id', $templateId)->max('order');
-        $newOrder = max(1, min($newOrder, $maxOrder));
+
+        $maxOrder = StepDefinition::where('template_id', $templateId)->whereNull('deleted_at')->max('order');
+        $newOrder = max(1, min($newOrder, $maxOrder ?? 1));
 
         if ($newOrder === $currentOrder) {
             return StepDefinition::where('template_id', $templateId)->orderBy('order')->get();

@@ -21,8 +21,8 @@ class StoreStepRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'assignee_type' => ['nullable', 'in:user,role,department'],
-            'assignee_id' => ['nullable', 'integer'],
-            'duration_hours' => ['required', 'integer', 'min:1'],
+            'assignee_id' => ['nullable', 'required_if:assignee_type,!=,null', 'integer'],
+            'duration_hours' => ['required', 'integer', 'min:1', 'max:8760'],
             'is_required' => ['required', 'boolean'],
         ];
     }

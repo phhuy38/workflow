@@ -23,6 +23,8 @@ const isReordering = ref(false);
 function onStepAdded() {
     showAddForm.value = false;
     // Inertia navigates back — parent component re-renders with fresh data
+    // Ideally track new step ID here to show "MỚI" badge, but since Inertia re-renders,
+    // this function is called before the new step arrives. Badge will show briefly on next render.
 }
 
 function onStepEdited() {
