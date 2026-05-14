@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Template\PublishTemplate;
+use App\Actions\Template\UnpublishTemplate;
 use App\Http\Requests\Template\StoreTemplateRequest;
+use App\Http\Requests\Template\UpdateTemplateRequest;
 use App\Http\Resources\ProcessTemplateResource;
 use App\Http\Resources\StepDefinitionResource;
 use App\Models\ProcessTemplate;
@@ -14,11 +17,16 @@ class ProcessTemplateController extends Controller
 {
     public function index(): Response
     {
-        $this->authorize('create', ProcessTemplate::class); // DÒNG ĐẦU TIÊN — manage_templates only
+        $this->authorize('viewAny', ProcessTemplate::class);
 
-        $templates = ProcessTemplate::withCount('stepDefinitions')
-            ->latest()
-            ->get();
+        // Designers/Admins see all, Managers only see Published
+        $query = ProcessTemplate::withCount('stepDefinitions')->latest();
+
+        if (! auth()->user()->hasPermissionTo('manage_templates')) {
+            $query->published();
+        }
+
+        $templates = $query->get();
 
         return Inertia::render('Templates/Index', [
             'templates' => ProcessTemplateResource::collection($templates)->resolve(),
@@ -56,5 +64,63 @@ class ProcessTemplateController extends Controller
                 'publish' => auth()->user()->can('publish', $processTemplate),
             ],
         ]);
+    }
+
+    public function update(UpdateTemplateRequest $request, ProcessTemplate $processTemplate): RedirectResponse
+    {
+        $processTemplate->update($request->validated());
+
+        $message = $processTemplate->is_published
+            ? 'Template đã được cập nhật. Các quy trình mới khởi động sẽ dùng phiên bản mới.'
+            : 'Template đã được cập nhật.';
+
+        return redirect()
+            ->back()
+            ->with('success', $message);
+    }
+
+    public function destroy(ProcessTemplate $processTemplate): RedirectResponse
+    {
+        $this->authorize('delete', $processTemplate);
+
+        if ($processTemplate->instances()->exists()) {
+            return redirect()
+                ->back()
+                ->with('error', 'Template đang có quy trình đang chạy, không thể xóa.');
+        }
+
+        $processTemplate->delete();
+
+        return redirect()
+            ->route('process-templates.index')
+            ->with('success', 'Template đã được xóa.');
+    }
+
+    public function publish(ProcessTemplate $processTemplate, PublishTemplate $action): RedirectResponse
+    {
+        $this->authorize('publish', $processTemplate);
+
+        try {
+            $action->handle($processTemplate);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()
+                ->back()
+                ->with('error', $e->errors()['error'][0] ?? $e->getMessage());
+        }
+
+        return redirect()
+            ->back()
+            ->with('success', 'Template đã được xuất bản. Manager hiện đã có thể sử dụng.');
+    }
+
+    public function unpublish(ProcessTemplate $processTemplate, UnpublishTemplate $action): RedirectResponse
+    {
+        $this->authorize('publish', $processTemplate);
+
+        $action->handle($processTemplate);
+
+        return redirect()
+            ->back()
+            ->with('success', 'Template đã được chuyển về bản nháp.');
     }
 }

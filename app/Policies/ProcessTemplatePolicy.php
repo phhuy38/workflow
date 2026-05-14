@@ -25,6 +25,7 @@ class ProcessTemplatePolicy
     // P3: Added $template parameter for object-level authorization
     public function update(User $user, mixed $template = null): bool
     {
+        // dd($user->toArray(), $user->getAllPermissions()->pluck('name')->toArray());
         return $user->hasPermissionTo('manage_templates');
     }
 

@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-12
-last_updated: 2026-04-17
+last_updated: 2026-05-14
 project: workflow
 
 project_key: NOKEY
@@ -56,8 +56,8 @@ development_status:
   epic-2: in-progress
   2-1-template-list-create-new-template: done
   2-2-configure-template-steps-with-visual-builder: done
-  2-3-edit-existing-template: backlog
-  2-4-publish-unpublish-template: backlog
+  2-3-edit-existing-template: done
+  2-4-publish-unpublish-template: done
   epic-2-retrospective: optional
 
   # ─── Epic 3: Process Instance Execution ───

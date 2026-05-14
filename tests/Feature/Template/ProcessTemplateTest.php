@@ -103,14 +103,14 @@ test('new template is created with draft status', function () {
 
 // ─── AC3: RBAC Protection ───────────────────────────────────────────────────
 
-test('non-designer gets 403 on template index', function () {
+test('manager can access template index (for launching)', function () {
     $this->seed(RequiredDataSeeder::class);
     $manager = User::factory()->create();
     $manager->assignRole('manager');
 
     $this->actingAs($manager)
         ->get(route('process-templates.index'))
-        ->assertForbidden();
+        ->assertOk();
 });
 
 test('executor gets 403 on template index', function () {

@@ -15,9 +15,13 @@ Route::inertia('/', 'Welcome', [
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Story 2.1: Template management (only: index, store, show — update/destroy added in 2.3)
+    // Story 2.1: Template management (index, store, show) + Story 2.3 (update, destroy) + Story 2.4 (publish/unpublish)
     Route::resource('process-templates', ProcessTemplateController::class)
-        ->only(['index', 'store', 'show']);
+        ->only(['index', 'store', 'show', 'update', 'destroy']);
+    Route::post('process-templates/{process_template}/publish', [ProcessTemplateController::class, 'publish'])
+        ->name('process-templates.publish');
+    Route::post('process-templates/{process_template}/unpublish', [ProcessTemplateController::class, 'unpublish'])
+        ->name('process-templates.unpublish');
 
     // Story 2.2: Step definition management
     Route::resource('step-definitions', StepDefinitionController::class)

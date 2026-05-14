@@ -37,3 +37,8 @@
 ## Deferred from: code review of 1-1-initialize-project-configure-development-infrastructure (2026-04-12)
 
 - Rate Limiter Guest sharing: Guest users share the same rate limit if they are behind a proxy, as it defaults to `$req->ip()`. This is acceptable for MVP but should be addressed for high-traffic environments.
+
+## Deferred from: code review of 2-3-edit-existing-template.md (2026-05-14)
+- Update method consistency: Show.vue uses .patch while some projects prefer .put.
+- Complex JSON casting: Future proofing for template_snapshot_data in ProcessInstance.
+- Test suite performance: Optimization of RequiredDataSeeder usage in ProcessTemplateEditTest.php.

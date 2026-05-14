@@ -30,6 +30,11 @@ class ProcessTemplate extends Model
         return $this->hasMany(StepDefinition::class, 'template_id')->orderBy('order');
     }
 
+    public function instances(): HasMany
+    {
+        return $this->hasMany(ProcessInstance::class, 'template_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
