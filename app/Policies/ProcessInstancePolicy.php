@@ -78,4 +78,10 @@ class ProcessInstancePolicy
     {
         return $user->hasRole(['admin', 'manager']);
     }
+
+    public function viewFullLog(User $user, ProcessInstance $instance): bool
+    {
+        // UX-DR9: Only managers and admins can see the full granular tracking
+        return $user->hasRole(['admin', 'manager']);
+    }
 }

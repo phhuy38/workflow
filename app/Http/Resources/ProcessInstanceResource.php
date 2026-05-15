@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources;
 
-use App\States\StepExecution\Completed;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -25,7 +24,7 @@ class ProcessInstanceResource extends JsonResource
             'launched_at' => $this->launched_at?->format('Y-m-d H:i:s'),
             'completed_at' => $this->completed_at?->format('Y-m-d H:i:s'),
             'launched_by' => $this->launched_by,
-            'creator_name' => $this->creator->name,
+            'creator_name' => $this->creator ? $this->creator->full_name : 'Hệ thống',
             'progress' => $this->getProgress(),
             'current_step' => $this->getCurrentStepName(),
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),

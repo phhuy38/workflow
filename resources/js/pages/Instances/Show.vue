@@ -236,6 +236,45 @@ function getFlash(key: string): string | null {
                 </Table>
             </div>
         </div>
+
+        <!-- Activity Log Timeline -->
+        <div v-if="can.view_full_log" class="flex flex-col gap-4 mt-4 border-t pt-6">
+            <h2 class="text-xl font-semibold">Lịch sử hoạt động (Audit Trail)</h2>
+            <div class="rounded-md border p-6 bg-card">
+                <div v-if="activities && activities.length > 0" class="flex flex-col gap-6 relative">
+                    <!-- Vertical line -->
+                    <div class="absolute left-[11px] top-2 bottom-2 w-[2px] bg-border"></div>
+                    
+                    <div v-for="activity in activities" :key="activity.id" class="flex gap-4 relative z-10">
+                        <div class="mt-1 h-6 w-6 rounded-full bg-primary flex items-center justify-center border-4 border-card shrink-0"></div>
+                        <div class="flex flex-col gap-1 pb-4">
+                            <div class="flex items-baseline gap-2">
+                                <span class="font-medium">{{ activity.description }}</span>
+                                <span class="text-xs text-muted-foreground">{{ activity.created_at }}</span>
+                            </div>
+                            <div class="text-sm">
+                                <span class="text-muted-foreground">Người thực hiện: </span>
+                                <span class="font-medium">{{ activity.causer_name }}</span>
+                            </div>
+                            <div class="text-sm">
+                                <span class="text-muted-foreground">Đối tượng: </span>
+                                <span>{{ activity.subject_type }} {{ activity.subject_name ? `- ${activity.subject_name}` : '' }}</span>
+                            </div>
+                            <div v-if="activity.properties && Object.keys(activity.properties).length > 0" class="mt-1 p-2 bg-muted rounded text-xs">
+                                <div v-for="(value, key) in activity.properties" :key="key">
+                                    <span class="font-medium capitalize">{{ key }}: </span>
+                                    <span v-if="typeof value === 'object' && value !== null" class="whitespace-pre-wrap">{{ JSON.stringify(value, null, 2) }}</span>
+                                    <span v-else>{{ value }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div v-else class="text-center py-4 text-muted-foreground">
+                    Không có dữ liệu lịch sử hoạt động.
+                </div>
+            </div>
+        </div>
+
     </div>
 </template>
-plate>

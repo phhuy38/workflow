@@ -21,12 +21,12 @@ class StepExecutionResource extends JsonResource
             'order' => $this->order,
             'status' => $this->status->getValue(),
             'assigned_to' => $this->assigned_to,
-            'assignee_name' => $this->assignee?->name,
+            'assignee_name' => $this->assignee?->full_name,
             'started_at' => $this->started_at?->format('Y-m-d H:i:s'),
             'deadline_at' => $this->deadline_at?->format('Y-m-d H:i:s'),
             'completed_at' => $this->completed_at?->format('Y-m-d H:i:s'),
             'completed_by' => $this->completed_by,
-            'finisher_name' => $this->finisher?->name,
+            'finisher_name' => $this->finisher?->full_name,
             'completion_notes' => $this->completion_notes,
         ];
     }

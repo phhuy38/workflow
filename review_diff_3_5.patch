@@ -1,0 +1,409 @@
+diff --git a/_bmad-output/implementation-artifacts/3-5-activity-log-full-audit-trail.md b/_bmad-output/implementation-artifacts/3-5-activity-log-full-audit-trail.md
+new file mode 100644
+index 0000000..d97b01c
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/3-5-activity-log-full-audit-trail.md
+@@ -0,0 +1,64 @@
++# Story 3.5: Activity log full audit trail (FR15)
++
++Status: review
++
++## Story
++
++As a Manager or Admin,
++I want to view a complete audit trail of all activities related to a process instance,
++so that I can track who did what and when, ensuring transparency and accountability.
++
++## Acceptance Criteria
++
++1. **Given** một instance có nhiều sự kiện (launch, acknowledge, complete, override, cancel), **When** Manager xem chi tiết instance đó, **Then** họ thấy một phần "Lịch sử hoạt động" (Activity Log / Timeline) hiển thị danh sách tất cả các sự kiện này.
++2. **Given** phần hiển thị Activity Log, **When** hệ thống render dữ liệu, **Then** mỗi dòng log phải hiển thị: thời gian (format dễ đọc), người thực hiện (causer), hành động (description), và chi tiết bổ sung (ví dụ: lý do override/cancel từ properties).
++3. **Given** danh sách log, **When** hiển thị, **Then** danh sách được sắp xếp theo thời gian mới nhất xếp trước (hoặc cũ nhất xếp trước tùy thiết kế timeline, nhưng phải nhất quán).
++4. **Given** dữ liệu log của instance và các bước con (step_executions), **When** query dữ liệu, **Then** hệ thống phải tổng hợp cả log của ProcessInstance và log của các StepExecution thuộc về instance đó thành một timeline duy nhất.
++5. **Given** một người dùng chỉ là Executor hoặc Beneficiary, **When** họ xem chi tiết task/quy trình, **Then** họ KHÔNG thấy toàn bộ Activity Log chi tiết như Manager (theo UX-DR9: "không hiển thị granular tracking cho Executor").
++
++## Tasks / Subtasks
++
++- [ ] **Domain Logic & Data Retrieval**
++  - [ ] Cập nhật `ProcessInstanceController@show` để load thêm dữ liệu Activity Log.
++  - [ ] Viết logic query để gộp log của `ProcessInstance` và các `StepExecution` liên quan (sử dụng Polymorphic relationships của spatie/laravel-activitylog), sắp xếp theo `created_at` DESC.
++  - [ ] Tạo `ActivityLogResource` để format dữ liệu trả về cho Frontend (xử lý translation các description thành tiếng Việt dễ đọc, xử lý causer name).
++- [ ] **Frontend: Timeline UI (Vue/Inertia)**
++  - [ ] Cập nhật `resources/js/pages/Instances/Show.vue` để thêm một tab hoặc section mới cho "Lịch sử hoạt động".
++  - [ ] Thiết kế một UI Component dạng Timeline (có thể dùng UI lib hoặc custom CSS) để hiển thị danh sách các sự kiện.
++  - [ ] Ẩn section này nếu user không có quyền view_full_log (kiểm tra qua biến `can` truyền từ controller).
++- [ ] **Testing**
++  - [ ] Viết Feature tests kiểm tra endpoint trả về đúng và đủ log từ cả instance và steps.
++  - [ ] Viết test xác nhận dữ liệu được sắp xếp đúng thứ tự thời gian.
++  - [ ] Viết Security tests đảm bảo Executor/Beneficiary không nhận được dữ liệu full log này trong props.
++
++## Dev Notes
++
++### Architecture Compliance
++- **ADR-005 (Audit Log):** Sử dụng model `Spatie\Activitylog\Models\Activity`.
++- Lấy log tổng hợp: Có thể query `Activity::where('subject_type', ProcessInstance::class)->where('subject_id', $id)->orWhere(function($q) { $q->where('subject_type', StepExecution::class)->whereIn('subject_id', $stepIds); })->with('causer')->latest()->get()`.
++- **UX-DR9:** Đảm bảo ẩn với Executor.
++
++### Project Structure Notes
++- Resource: `app/Http/Resources/ActivityResource.php`
++
++### References
++- [PRD: FR15, UX-DR9](_bmad-output/planning-artifacts/prd.md)
++- [Epics: Story 3.5](_bmad-output/planning-artifacts/epics.md)
++
++## Dev Agent Record
++
++### Agent Model Used
++Gemini 2.0 Flash
++
++### Debug Log References
++N/A
++
++### Completion Notes List
++N/A
++
++### File List
++- app/Http/Resources/ActivityResource.php (new)
++- app/Http/Controllers/ProcessInstanceController.php (update)
++- resources/js/pages/Instances/Show.vue (update)
++- tests/Feature/Process/ActivityLogTest.php (new)
++new)
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index baa358f..50869aa 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -66,7 +66,7 @@ development_status:
+   3-2-executor-acknowledge-complete-step: review
+   3-3-automatic-step-progression-process-completion: review
+   3-4-manager-override-step-cancel-instance: done
+-  3-5-activity-log-full-audit-trail: backlog
++  3-5-activity-log-full-audit-trail: review
+   epic-3-retrospective: optional
+ 
+   # ─── Epic 4: Manager Dashboard & Real-time Visibility ───
+diff --git a/app/Http/Controllers/ProcessInstanceController.php b/app/Http/Controllers/ProcessInstanceController.php
+index b1c13e7..7471a12 100644
+--- a/app/Http/Controllers/ProcessInstanceController.php
++++ b/app/Http/Controllers/ProcessInstanceController.php
+@@ -5,15 +5,18 @@
+ use App\Actions\Process\CancelInstance;
+ use App\Actions\Process\LaunchProcessInstance;
+ use App\Http\Requests\Process\LaunchProcessRequest;
++use App\Http\Resources\ActivityResource;
+ use App\Http\Resources\ProcessInstanceResource;
+ use App\Http\Resources\ProcessTemplateResource;
+ use App\Http\Resources\StepExecutionResource;
+ use App\Models\ProcessInstance;
+ use App\Models\ProcessTemplate;
++use App\Models\StepExecution;
+ use Illuminate\Http\RedirectResponse;
+ use Illuminate\Http\Request;
+ use Inertia\Inertia;
+ use Inertia\Response;
++use Spatie\Activitylog\Models\Activity;
+ 
+ class ProcessInstanceController extends Controller
+ {
+@@ -65,12 +68,30 @@ public function show(ProcessInstance $processInstance): Response
+ 
+         $processInstance->load(['template', 'creator', 'stepExecutions.assignee']);
+ 
++        $activities = [];
++        $canViewFullLog = auth()->user()->can('viewFullLog', $processInstance);
++
++        if ($canViewFullLog) {
++            $stepIds = $processInstance->stepExecutions->pluck('id');
++            $rawActivities = Activity::where(function ($q) use ($processInstance) {
++                $q->where('subject_type', ProcessInstance::class)
++                    ->where('subject_id', $processInstance->id);
++            })->orWhere(function ($q) use ($stepIds) {
++                $q->where('subject_type', StepExecution::class)
++                    ->whereIn('subject_id', $stepIds);
++            })->with(['causer', 'subject'])->latest()->get();
++
++            $activities = ActivityResource::collection($rawActivities)->resolve();
++        }
++
+         return Inertia::render('Instances/Show', [
+             'instance' => ProcessInstanceResource::make($processInstance),
+             'steps' => StepExecutionResource::collection($processInstance->stepExecutions)->resolve(),
++            'activities' => $activities,
+             'can' => [
+                 'cancel' => auth()->user()->can('cancel', $processInstance),
+                 'override' => auth()->user()->can('override', $processInstance),
++                'view_full_log' => $canViewFullLog,
+             ],
+         ]);
+     }
+diff --git a/app/Http/Resources/ActivityResource.php b/app/Http/Resources/ActivityResource.php
+new file mode 100644
+index 0000000..63d170a
+--- /dev/null
++++ b/app/Http/Resources/ActivityResource.php
+@@ -0,0 +1,65 @@
++<?php
++
++namespace App\Http\Resources;
++
++use App\Models\ProcessInstance;
++use App\Models\StepExecution;
++use Illuminate\Http\Request;
++use Illuminate\Http\Resources\Json\JsonResource;
++
++class ActivityResource extends JsonResource
++{
++    /**
++     * Transform the resource into an array.
++     *
++     * @return array<string, mixed>
++     */
++    public function toArray(Request $request): array
++    {
++        return [
++            'id' => $this->id,
++            'description' => $this->formatDescription(),
++            'causer_name' => $this->causer ? $this->causer->name : 'Hệ thống',
++            'properties' => $this->properties,
++            'created_at' => $this->created_at->format('Y-m-d H:i:s'),
++            'subject_type' => $this->formatSubjectType(),
++            'subject_name' => $this->getSubjectName(),
++        ];
++    }
++
++    private function formatDescription(): string
++    {
++        $map = [
++            'created' => 'Khởi tạo',
++            'updated' => 'Cập nhật',
++            'deleted' => 'Xóa',
++            'acknowledged' => 'Xác nhận nhận việc',
++            'completed' => 'Hoàn thành',
++            'overridden' => 'Ghi đè (Override)',
++            'cancelled' => 'Hủy bỏ',
++        ];
++
++        return $map[$this->description] ?? $this->description;
++    }
++
++    private function formatSubjectType(): string
++    {
++        if ($this->subject_type === ProcessInstance::class) {
++            return 'Quy trình';
++        }
++        if ($this->subject_type === StepExecution::class) {
++            return 'Bước thực thi';
++        }
++
++        return 'Khác';
++    }
++
++    private function getSubjectName(): ?string
++    {
++        if ($this->subject) {
++            return $this->subject->name;
++        }
++
++        return null;
++    }
++}
+diff --git a/app/Policies/ProcessInstancePolicy.php b/app/Policies/ProcessInstancePolicy.php
+index e916e75..68065ae 100644
+--- a/app/Policies/ProcessInstancePolicy.php
++++ b/app/Policies/ProcessInstancePolicy.php
+@@ -78,4 +78,10 @@ public function ping(User $user, ProcessInstance $instance): bool
+     {
+         return $user->hasRole(['admin', 'manager']);
+     }
++
++    public function viewFullLog(User $user, ProcessInstance $instance): bool
++    {
++        // UX-DR9: Only managers and admins can see the full granular tracking
++        return $user->hasRole(['admin', 'manager']);
++    }
+ }
+diff --git a/resources/js/pages/Instances/Show.vue b/resources/js/pages/Instances/Show.vue
+index aa5e5f4..86d92a8 100644
+--- a/resources/js/pages/Instances/Show.vue
++++ b/resources/js/pages/Instances/Show.vue
+@@ -236,6 +236,44 @@ function getFlash(key: string): string | null {
+                 </Table>
+             </div>
+         </div>
++
++        <!-- Activity Log Timeline -->
++        <div v-if="can.view_full_log" class="flex flex-col gap-4 mt-4 border-t pt-6">
++            <h2 class="text-xl font-semibold">Lịch sử hoạt động (Audit Trail)</h2>
++            <div class="rounded-md border p-6 bg-card">
++                <div v-if="activities && activities.length > 0" class="flex flex-col gap-6 relative">
++                    <!-- Vertical line -->
++                    <div class="absolute left-[11px] top-2 bottom-2 w-[2px] bg-border"></div>
++                    
++                    <div v-for="activity in activities" :key="activity.id" class="flex gap-4 relative z-10">
++                        <div class="mt-1 h-6 w-6 rounded-full bg-primary flex items-center justify-center border-4 border-card shrink-0"></div>
++                        <div class="flex flex-col gap-1 pb-4">
++                            <div class="flex items-baseline gap-2">
++                                <span class="font-medium">{{ activity.description }}</span>
++                                <span class="text-xs text-muted-foreground">{{ activity.created_at }}</span>
++                            </div>
++                            <div class="text-sm">
++                                <span class="text-muted-foreground">Người thực hiện: </span>
++                                <span class="font-medium">{{ activity.causer_name }}</span>
++                            </div>
++                            <div class="text-sm">
++                                <span class="text-muted-foreground">Đối tượng: </span>
++                                <span>{{ activity.subject_type }} {{ activity.subject_name ? `- ${activity.subject_name}` : '' }}</span>
++                            </div>
++                            <div v-if="activity.properties && Object.keys(activity.properties).length > 0" class="mt-1 p-2 bg-muted rounded text-xs">
++                                <div v-for="(value, key) in activity.properties" :key="key">
++                                    <span class="font-medium capitalize">{{ key }}: </span>
++                                    <span>{{ value }}</span>
++                                </div>
++                            </div>
++                        </div>
++                    </div>
++                </div>
++                <div v-else class="text-center py-4 text-muted-foreground">
++                    Không có dữ liệu lịch sử hoạt động.
++                </div>
++            </div>
++        </div>
++
+     </div>
+ </template>
+-plate>
+diff --git a/tests/Feature/Process/ActivityLogTest.php b/tests/Feature/Process/ActivityLogTest.php
+new file mode 100644
+index 0000000..69fde98
+--- /dev/null
++++ b/tests/Feature/Process/ActivityLogTest.php
+@@ -0,0 +1,130 @@
++<?php
++
++use App\Models\ProcessInstance;
++use App\Models\ProcessTemplate;
++use App\Models\StepDefinition;
++use App\Models\User;
++use Database\Seeders\RequiredDataSeeder;
++use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
++use Spatie\Activitylog\Models\Activity;
++
++beforeEach(function () {
++    $this->seed(RequiredDataSeeder::class);
++    $this->withoutMiddleware(PreventRequestForgery::class);
++});
++
++test('manager sees full activity log timeline on instance show', function () {
++    $manager = User::factory()->create();
++    $manager->assignRole('manager');
++
++    $executor = User::factory()->create();
++    $executor->assignRole('executor');
++
++    $template = ProcessTemplate::create([
++        'name' => 'Timeline Test',
++        'created_by' => 1,
++        'is_published' => true,
++    ]);
++
++    StepDefinition::create([
++        'template_id' => $template->id,
++        'name' => 'Step 1',
++        'order' => 1,
++        'assignee_type' => 'user',
++        'assignee_id' => $executor->id,
++        'duration_hours' => 24,
++    ]);
++
++    // 1. Launch (creates Instance log)
++    $this->actingAs($manager)
++        ->post(route('process-instances.store'), [
++            'template_id' => $template->id,
++            'name' => 'Instance Timeline',
++            'context_data' => [],
++        ]);
++
++    $instance = ProcessInstance::where('name', 'Instance Timeline')->first();
++    $step = $instance->stepExecutions()->first();
++
++    // Give it a tiny sleep to ensure order of created_at
++    sleep(1);
++
++    // 2. Acknowledge (creates Step log)
++    $this->actingAs($executor)
++        ->post(route('step-executions.acknowledge', $step));
++
++    sleep(1);
++
++    // 3. Complete (creates Step log and Instance complete log)
++    $this->actingAs($executor)
++        ->post(route('step-executions.complete', $step), [
++            'completion_notes' => 'Done',
++        ]);
++
++    // Now visit show page as manager
++    $response = $this->actingAs($manager)
++        ->get(route('process-instances.show', $instance));
++
++    $response->assertOk();
++
++    // Check Inertia props
++    $response->assertInertia(fn ($page) => $page
++        ->has('activities', 4) // 1 launch, 1 acknowledge, 1 step complete, 1 instance complete
++        ->where('can.view_full_log', true)
++    );
++
++    // Get activities from inertia props to check order
++    $activities = $response->viewData('page')['props']['activities'];
++
++    // The first activity should be the most recent one (instance complete)
++    expect($activities[0]['description'])->toBe('Hoàn thành');
++    expect($activities[0]['subject_type'])->toBe('Quy trình');
++
++    // The last activity should be the oldest one (instance created)
++    expect($activities[3]['description'])->toBe('Khởi tạo');
++    expect($activities[3]['subject_type'])->toBe('Quy trình');
++});
++
++test('executor cannot see full activity log timeline', function () {
++    $this->withoutExceptionHandling();
++    $manager = User::factory()->create();
++    $manager->assignRole('manager');
++
++    $executor = User::factory()->create();
++    $executor->assignRole('executor');
++
++    $template = ProcessTemplate::create([
++        'name' => 'Timeline Security Test',
++        'created_by' => 1,
++        'is_published' => true,
++    ]);
++
++    StepDefinition::create([
++        'template_id' => $template->id,
++        'name' => 'Step 1',
++        'order' => 1,
++        'assignee_type' => 'user',
++        'assignee_id' => $executor->id,
++        'duration_hours' => 24,
++    ]);
++
++    $this->actingAs($manager)
++        ->post(route('process-instances.store'), [
++            'template_id' => $template->id,
++            'name' => 'Instance Timeline Security',
++            'context_data' => [],
++        ]);
++
++    $instance = ProcessInstance::where('name', 'Instance Timeline Security')->first();
++
++    // Visit show page as executor
++    $response = $this->actingAs($executor)
++        ->get(route('process-instances.show', $instance));
++
++    $response->assertOk();
++
++    $response->assertInertia(fn ($page) => $page
++        ->has('activities', 0) // Should be empty
++        ->where('can.view_full_log', false)
++    );
++});

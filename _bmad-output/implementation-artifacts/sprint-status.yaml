@@ -66,7 +66,7 @@ development_status:
   3-2-executor-acknowledge-complete-step: review
   3-3-automatic-step-progression-process-completion: review
   3-4-manager-override-step-cancel-instance: done
-  3-5-activity-log-full-audit-trail: backlog
+  3-5-activity-log-full-audit-trail: done
   epic-3-retrospective: optional
 
   # ─── Epic 4: Manager Dashboard & Real-time Visibility ───

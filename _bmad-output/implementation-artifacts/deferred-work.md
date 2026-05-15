@@ -52,3 +52,8 @@
 
 ## Deferred from: code review of 3-4-manager-override-step-cancel-instance.md (2026-05-15)
 - Double Update/Missing Transaction Lock in Override — `OverrideStep` mutates state then transitions without explicit locking, though `transitionTo` handles the save. Potential future refactor to explicit `save()` if Spatie library changes.
+
+## Deferred from: code review of 3-5-activity-log-full-audit-trail.md (2026-05-15)
+- Hardcoded Translations — `ActivityResource` hardcodes Vietnamese strings instead of using Laravel's localization system.
+- Fat Controller — The polymorphic ORM query in `ProcessInstanceController` should be extracted to a dedicated Service or Action class.
+- Scale & Performance Risks — Missing pagination for activity logs, which could degrade performance for long-running processes.
