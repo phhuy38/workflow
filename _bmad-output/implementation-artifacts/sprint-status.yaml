@@ -70,8 +70,8 @@ development_status:
   epic-3-retrospective: optional
 
   # ─── Epic 4: Manager Dashboard & Real-time Visibility ───
-  epic-4: backlog
-  4-1-manager-dashboard-traffic-light-status: backlog
+  epic-4: in-progress
+  4-1-manager-dashboard-traffic-light-status: ready-for-dev
   4-2-filter-search-instances: backlog
   4-3-instance-detail-progress-tracking: backlog
   4-4-real-time-dashboard-instance-updates-via-websocket: backlog
