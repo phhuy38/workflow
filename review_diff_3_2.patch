@@ -1,0 +1,2476 @@
+diff --git a/_bmad-output/implementation-artifacts/deferred-work.md b/_bmad-output/implementation-artifacts/deferred-work.md
+index b1cf44a..436503e 100644
+--- a/_bmad-output/implementation-artifacts/deferred-work.md
++++ b/_bmad-output/implementation-artifacts/deferred-work.md
+@@ -42,3 +42,7 @@ ## Deferred from: code review of 2-3-edit-existing-template.md (2026-05-14)
+ - Update method consistency: Show.vue uses .patch while some projects prefer .put.
+ - Complex JSON casting: Future proofing for template_snapshot_data in ProcessInstance.
+ - Test suite performance: Optimization of RequiredDataSeeder usage in ProcessTemplateEditTest.php.
++
++## Deferred from: code review of 3-1-launch-process-instance.md (2026-05-15)
++- Static Versioning — Template version field is never incremented. Pre-existing/Future concern.
++- Template Deletion Protection — Error message claims 'running' processes but blocks if *any* history exists. Pre-existing issue.
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index f80263a..6f3bd7d 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -35,7 +35,7 @@
+ # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+ 
+ generated: 2026-04-12
+-last_updated: 2026-05-14
++last_updated: 2026-05-15
+ project: workflow
+ 
+ project_key: NOKEY
+@@ -44,7 +44,7 @@ story_location: _bmad-output/implementation-artifacts
+ 
+ development_status:
+   # ─── Epic 1: Foundation, Infrastructure & System Administration ───
+-  epic-1: in-progress
++  epic-1: done
+   1-1-initialize-project-configure-development-infrastructure: done
+   1-2-authentication-login-logout-session-security: done
+   1-3-role-based-access-control-5-roles-policy-layer: done
+@@ -53,7 +53,7 @@ development_status:
+   epic-1-retrospective: optional
+ 
+   # ─── Epic 2: Process Template Management ───
+-  epic-2: in-progress
++  epic-2: done
+   2-1-template-list-create-new-template: done
+   2-2-configure-template-steps-with-visual-builder: done
+   2-3-edit-existing-template: done
+@@ -61,9 +61,9 @@ development_status:
+   epic-2-retrospective: optional
+ 
+   # ─── Epic 3: Process Instance Execution ───
+-  epic-3: backlog
+-  3-1-launch-process-instance: backlog
+-  3-2-executor-acknowledge-complete-step: backlog
++  epic-3: in-progress
++  3-1-launch-process-instance: done
++  3-2-executor-acknowledge-complete-step: review
+   3-3-automatic-step-progression-process-completion: backlog
+   3-4-manager-override-step-cancel-instance: backlog
+   3-5-activity-log-full-audit-trail: backlog
+diff --git a/app/Actions/Process/AcknowledgeStep.php b/app/Actions/Process/AcknowledgeStep.php
+new file mode 100644
+index 0000000..f6a81b6
+--- /dev/null
++++ b/app/Actions/Process/AcknowledgeStep.php
+@@ -0,0 +1,29 @@
++<?php
++
++namespace App\Actions\Process;
++
++use App\Models\StepExecution;
++use App\Models\User;
++use App\States\StepExecution\InProgress;
++use Illuminate\Support\Facades\DB;
++
++class AcknowledgeStep
++{
++    public function handle(StepExecution $step, User $user): void
++    {
++        DB::transaction(function () use ($step, $user) {
++            // ADR-016: State transition
++            $step->status->transitionTo(InProgress::class);
++
++            $step->update([
++                'started_at' => now(),
++            ]);
++
++            // ADR-005: Audit Log
++            activity()
++                ->performedOn($step)
++                ->causedBy($user)
++                ->log('acknowledged');
++        });
++    }
++}
+diff --git a/app/Actions/Process/CompleteStep.php b/app/Actions/Process/CompleteStep.php
+new file mode 100644
+index 0000000..b228206
+--- /dev/null
++++ b/app/Actions/Process/CompleteStep.php
+@@ -0,0 +1,72 @@
++<?php
++
++namespace App\Actions\Process;
++
++use App\Models\ProcessInstance;
++use App\Models\StepExecution;
++use App\Models\User;
++use App\States\ProcessInstance\Completed as ProcessCompleted;
++use App\States\StepExecution\Completed as StepCompleted;
++use Illuminate\Support\Facades\DB;
++
++class CompleteStep
++{
++    public function handle(StepExecution $step, User $user, array $data = []): void
++    {
++        DB::transaction(function () use ($step, $user, $data) {
++            // ADR-016: State transition
++            $step->status->transitionTo(StepCompleted::class);
++
++            $step->update([
++                'completed_at' => now(),
++                'completed_by' => $user->id,
++                'completion_notes' => $data['completion_notes'] ?? null,
++            ]);
++
++            // ADR-005: Audit Log
++            activity()
++                ->performedOn($step)
++                ->causedBy($user)
++                ->log('completed');
++
++            $this->triggerNextStepOrCompleteProcess($step->instance, $step, $user);
++        });
++    }
++
++    private function triggerNextStepOrCompleteProcess(ProcessInstance $instance, StepExecution $currentStep, User $user): void
++    {
++        $instance->load('template.stepDefinitions');
++
++        $nextStepDef = $instance->template->stepDefinitions
++            ->where('order', '>', $currentStep->order)
++            ->sortBy('order')
++            ->first();
++
++        if ($nextStepDef) {
++            // AC3: Create next StepExecution (FR12)
++            StepExecution::create([
++                'instance_id' => $instance->id,
++                'step_definition_id' => $nextStepDef->id,
++                'step_snapshot_data' => $nextStepDef->toArray(),
++                'name' => $nextStepDef->name,
++                'order' => $nextStepDef->order,
++                'status' => 'pending',
++                'assigned_to' => $nextStepDef->assignee_id,
++                'deadline_at' => now()->addHours($nextStepDef->duration_hours),
++            ]);
++
++            // Optionally fire an event/notification here in future stories
++        } else {
++            // AC3: No more steps, complete the process
++            $instance->status->transitionTo(ProcessCompleted::class);
++            $instance->update([
++                'completed_at' => now(),
++            ]);
++
++            activity()
++                ->performedOn($instance)
++                ->causedBy($user)
++                ->log('completed');
++        }
++    }
++}
+diff --git a/app/Actions/Process/LaunchProcessInstance.php b/app/Actions/Process/LaunchProcessInstance.php
+new file mode 100644
+index 0000000..222eb33
+--- /dev/null
++++ b/app/Actions/Process/LaunchProcessInstance.php
+@@ -0,0 +1,69 @@
++<?php
++
++namespace App\Actions\Process;
++
++use App\Events\ProcessLaunched;
++use App\Models\ProcessInstance;
++use App\Models\ProcessTemplate;
++use App\Models\StepExecution;
++use App\Models\User;
++use App\States\ProcessInstance\Running;
++use Illuminate\Support\Facades\DB;
++use Illuminate\Validation\ValidationException;
++
++class LaunchProcessInstance
++{
++    public function handle(ProcessTemplate $template, array $data, User $launcher): ProcessInstance
++    {
++        if (! $template->is_published) {
++            throw ValidationException::withMessages([
++                'template_id' => 'Quy trình chưa được publish.',
++            ]);
++        }
++
++        $template->load('stepDefinitions');
++
++        return DB::transaction(function () use ($template, $data, $launcher) {
++            // ADR-006: Snapshot template data
++            $snapshot = $template->toArray();
++            $snapshot['steps'] = $template->stepDefinitions->toArray();
++
++            $instance = ProcessInstance::create([
++                'template_id' => $template->id,
++                'name' => $data['name'],
++                'template_snapshot_data' => $snapshot,
++                'context_data' => $data['context_data'] ?? [],
++                'launched_by' => $launcher->id,
++                'status' => 'pending', // Create in Pending first
++            ]);
++
++            // ADR-016: Explicit transition to Running
++            $instance->status->transitionTo(Running::class);
++
++            // ADR-005: Audit Log (Synchronous as per default config, explicit intent here)
++            activity()
++                ->performedOn($instance)
++                ->causedBy($launcher)
++                ->log('created');
++
++            // AC1 & FR8: Create first StepExecution
++            $firstStepDef = $template->stepDefinitions->firstWhere('order', 1);
++            if ($firstStepDef) {
++                StepExecution::create([
++                    'instance_id' => $instance->id,
++                    'step_definition_id' => $firstStepDef->id,
++                    'step_snapshot_data' => $firstStepDef->toArray(),
++                    'name' => $firstStepDef->name,
++                    'order' => 1,
++                    'status' => 'pending',
++                    'assigned_to' => $firstStepDef->assignee_id,
++                    'deadline_at' => now()->addHours($firstStepDef->duration_hours),
++                ]);
++            }
++
++            event(new ProcessLaunched($instance));
++
++            return $instance;
++        });
++    }
++}
+diff --git a/app/Actions/Template/PublishTemplate.php b/app/Actions/Template/PublishTemplate.php
+index bd6ed93..361f60c 100644
+--- a/app/Actions/Template/PublishTemplate.php
++++ b/app/Actions/Template/PublishTemplate.php
+@@ -24,6 +24,9 @@ public function handle(ProcessTemplate $template): void
+             if (empty($step->assignee_type)) {
+                 $errors[] = "Bước {$stepNum}: chưa có loại người phụ trách.";
+             }
++            if ($step->assignee_type === 'user' && ! $step->assignee_id) {
++                $errors[] = "Bước {$stepNum}: chưa chọn người phụ trách cụ thể.";
++            }
+             if ($step->duration_hours <= 0) {
+                 $errors[] = "Bước {$stepNum}: thời hạn phải lớn hơn 0.";
+             }
+diff --git a/app/Events/ProcessLaunched.php b/app/Events/ProcessLaunched.php
+new file mode 100644
+index 0000000..b615c6e
+--- /dev/null
++++ b/app/Events/ProcessLaunched.php
+@@ -0,0 +1,27 @@
++<?php
++
++namespace App\Events;
++
++use App\Models\ProcessInstance;
++use Illuminate\Broadcasting\Channel;
++use Illuminate\Broadcasting\InteractsWithSockets;
++use Illuminate\Broadcasting\PrivateChannel;
++use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
++use Illuminate\Foundation\Events\Dispatchable;
++use Illuminate\Queue\SerializesModels;
++
++class ProcessLaunched implements ShouldBroadcast
++{
++    use Dispatchable, InteractsWithSockets, SerializesModels;
++
++    public function __construct(public ProcessInstance $instance) {}
++
++    public function broadcastOn(): array
++    {
++        // ADR-020: organization.{orgId} - For now, we don't have orgId, so using global org channel or similar
++        // Since we are single-tenant as per ADR-001, we might use a fixed org ID or just 'organization'
++        return [
++            new PrivateChannel('organization.1'),
++        ];
++    }
++}
+diff --git a/app/Http/Controllers/ProcessInstanceController.php b/app/Http/Controllers/ProcessInstanceController.php
+new file mode 100644
+index 0000000..de9b298
+--- /dev/null
++++ b/app/Http/Controllers/ProcessInstanceController.php
+@@ -0,0 +1,71 @@
++<?php
++
++namespace App\Http\Controllers;
++
++use App\Actions\Process\LaunchProcessInstance;
++use App\Http\Requests\Process\LaunchProcessRequest;
++use App\Http\Resources\ProcessInstanceResource;
++use App\Http\Resources\ProcessTemplateResource;
++use App\Http\Resources\StepExecutionResource;
++use App\Models\ProcessInstance;
++use App\Models\ProcessTemplate;
++use Illuminate\Http\RedirectResponse;
++use Inertia\Inertia;
++use Inertia\Response;
++
++class ProcessInstanceController extends Controller
++{
++    public function index(): Response
++    {
++        $this->authorize('viewAny', ProcessInstance::class);
++
++        $query = ProcessInstance::with(['template', 'creator'])->latest();
++
++        // RBAC filtering (ADR-004)
++        if (! auth()->user()->hasRole(['admin', 'manager', 'process_designer'])) {
++            // Logic for executor/beneficiary filtering would go here
++            // For now, only privileged roles see index
++            $query->where('launched_by', auth()->id());
++        }
++
++        $instances = $query->get();
++
++        return Inertia::render('Instances/Index', [
++            'instances' => ProcessInstanceResource::collection($instances)->resolve(),
++        ]);
++    }
++
++    public function create(): Response
++    {
++        $this->authorize('create', ProcessInstance::class);
++
++        $templates = ProcessTemplate::published()->withCount('stepDefinitions')->get();
++
++        return Inertia::render('Instances/Create', [
++            'templates' => ProcessTemplateResource::collection($templates)->resolve(),
++        ]);
++    }
++
++    public function store(LaunchProcessRequest $request, LaunchProcessInstance $action): RedirectResponse
++    {
++        $template = ProcessTemplate::findOrFail($request->template_id);
++
++        $instance = $action->handle($template, $request->validated(), auth()->user());
++
++        return redirect()
++            ->route('process-instances.show', $instance)
++            ->with('success', 'Quy trình đã được khởi động.');
++    }
++
++    public function show(ProcessInstance $processInstance): Response
++    {
++        $this->authorize('view', $processInstance);
++
++        $processInstance->load(['template', 'creator', 'stepExecutions.assignee']);
++
++        return Inertia::render('Instances/Show', [
++            'instance' => ProcessInstanceResource::make($processInstance),
++            'steps' => StepExecutionResource::collection($processInstance->stepExecutions)->resolve(),
++        ]);
++    }
++}
+diff --git a/app/Http/Controllers/ProcessTemplateController.php b/app/Http/Controllers/ProcessTemplateController.php
+index d2a7c02..e606242 100644
+--- a/app/Http/Controllers/ProcessTemplateController.php
++++ b/app/Http/Controllers/ProcessTemplateController.php
+@@ -10,6 +10,7 @@
+ use App\Http\Resources\StepDefinitionResource;
+ use App\Models\ProcessTemplate;
+ use Illuminate\Http\RedirectResponse;
++use Illuminate\Validation\ValidationException;
+ use Inertia\Inertia;
+ use Inertia\Response;
+ 
+@@ -51,7 +52,7 @@ public function store(StoreTemplateRequest $request): RedirectResponse
+ 
+     public function show(ProcessTemplate $processTemplate): Response
+     {
+-        $this->authorize('view', $processTemplate); // DÒNG ĐẦU TIÊN
++        $this->authorize('view', $processTemplate);
+ 
+         $processTemplate->load('stepDefinitions');
+ 
+@@ -59,7 +60,7 @@ public function show(ProcessTemplate $processTemplate): Response
+             'template' => ProcessTemplateResource::make($processTemplate),
+             'steps' => StepDefinitionResource::collection($processTemplate->stepDefinitions)->resolve(),
+             'can' => [
+-                'update' => auth()->user()->can('update', $processTemplate),
++                'update' => auth()->user()->can('update', $processTemplate) && ! $processTemplate->is_published,
+                 'delete' => auth()->user()->can('delete', $processTemplate),
+                 'publish' => auth()->user()->can('publish', $processTemplate),
+             ],
+@@ -68,6 +69,10 @@ public function show(ProcessTemplate $processTemplate): Response
+ 
+     public function update(UpdateTemplateRequest $request, ProcessTemplate $processTemplate): RedirectResponse
+     {
++        if ($processTemplate->is_published) {
++            return redirect()->back()->with('error', 'Không thể sửa template đã xuất bản.');
++        }
++
+         $processTemplate->update($request->validated());
+ 
+         $message = $processTemplate->is_published
+@@ -102,7 +107,7 @@ public function publish(ProcessTemplate $processTemplate, PublishTemplate $actio
+ 
+         try {
+             $action->handle($processTemplate);
+-        } catch (\Illuminate\Validation\ValidationException $e) {
++        } catch (ValidationException $e) {
+             return redirect()
+                 ->back()
+                 ->with('error', $e->errors()['error'][0] ?? $e->getMessage());
+diff --git a/app/Http/Controllers/StepDefinitionController.php b/app/Http/Controllers/StepDefinitionController.php
+index d8984d0..e66fc4f 100644
+--- a/app/Http/Controllers/StepDefinitionController.php
++++ b/app/Http/Controllers/StepDefinitionController.php
+@@ -20,6 +20,11 @@ class StepDefinitionController extends Controller
+     public function store(StoreStepRequest $request, CreateStepDefinition $action): RedirectResponse
+     {
+         $template = ProcessTemplate::findOrFail($request->validated()['template_id']);
++
++        if ($template->is_published) {
++            return redirect()->back()->with('error', 'Không thể thêm bước vào template đã xuất bản.');
++        }
++
+         $action->handle($template, $request->validated());
+ 
+         return redirect()
+@@ -29,6 +34,10 @@ public function store(StoreStepRequest $request, CreateStepDefinition $action):
+ 
+     public function update(UpdateStepRequest $request, StepDefinition $stepDefinition, UpdateStepDefinition $action): RedirectResponse
+     {
++        if ($stepDefinition->processTemplate->is_published) {
++            return redirect()->back()->with('error', 'Không thể sửa bước của template đã xuất bản.');
++        }
++
+         $action->handle($stepDefinition, $request->validated());
+ 
+         return redirect()
+@@ -39,6 +48,11 @@ public function update(UpdateStepRequest $request, StepDefinition $stepDefinitio
+     public function destroy(StepDefinition $stepDefinition, DeleteStepDefinition $action): RedirectResponse
+     {
+         $this->authorize('update', $stepDefinition->processTemplate);
++
++        if ($stepDefinition->processTemplate->is_published) {
++            return redirect()->back()->with('error', 'Không thể xóa bước của template đã xuất bản.');
++        }
++
+         $templateId = $stepDefinition->template_id;
+         $action->handle($stepDefinition);
+ 
+@@ -49,6 +63,12 @@ public function destroy(StepDefinition $stepDefinition, DeleteStepDefinition $ac
+ 
+     public function reorder(ReorderStepRequest $request, StepDefinition $stepDefinition, ReorderStepDefinition $action): JsonResponse|RedirectResponse
+     {
++        if ($stepDefinition->processTemplate->is_published) {
++            return $request->wantsJson()
++                ? response()->json(['error' => 'Không thể đổi thứ tự bước của template đã xuất bản.'], 422)
++                : redirect()->back()->with('error', 'Không thể đổi thứ tự bước của template đã xuất bản.');
++        }
++
+         $steps = $action->handle($stepDefinition, $request->validated()['new_order']);
+ 
+         if ($request->wantsJson()) {
+diff --git a/app/Http/Controllers/StepExecutionController.php b/app/Http/Controllers/StepExecutionController.php
+new file mode 100644
+index 0000000..cdc3dbc
+--- /dev/null
++++ b/app/Http/Controllers/StepExecutionController.php
+@@ -0,0 +1,34 @@
++<?php
++
++namespace App\Http\Controllers;
++
++use App\Actions\Process\AcknowledgeStep;
++use App\Actions\Process\CompleteStep;
++use App\Models\StepExecution;
++use Illuminate\Http\RedirectResponse;
++use Illuminate\Http\Request;
++
++class StepExecutionController extends Controller
++{
++    public function acknowledge(StepExecution $stepExecution, AcknowledgeStep $action): RedirectResponse
++    {
++        $this->authorize('acknowledge', $stepExecution);
++
++        $action->handle($stepExecution, auth()->user());
++
++        return redirect()->back()->with('success', 'Đã xác nhận nhận việc.');
++    }
++
++    public function complete(Request $request, StepExecution $stepExecution, CompleteStep $action): RedirectResponse
++    {
++        $this->authorize('complete', $stepExecution);
++
++        $validated = $request->validate([
++            'completion_notes' => 'nullable|string|max:1000',
++        ]);
++
++        $action->handle($stepExecution, auth()->user(), $validated);
++
++        return redirect()->back()->with('success', 'Đã hoàn thành bước.');
++    }
++}
+diff --git a/app/Http/Requests/Process/LaunchProcessRequest.php b/app/Http/Requests/Process/LaunchProcessRequest.php
+new file mode 100644
+index 0000000..8466e94
+--- /dev/null
++++ b/app/Http/Requests/Process/LaunchProcessRequest.php
+@@ -0,0 +1,33 @@
++<?php
++
++namespace App\Http\Requests\Process;
++
++use App\Models\ProcessInstance;
++use Illuminate\Contracts\Validation\ValidationRule;
++use Illuminate\Foundation\Http\FormRequest;
++
++class LaunchProcessRequest extends FormRequest
++{
++    /**
++     * Determine if the user is authorized to make this request.
++     */
++    public function authorize(): bool
++    {
++        // ADR-019: LUÔN delegate sang Policy
++        return $this->user()->can('create', ProcessInstance::class);
++    }
++
++    /**
++     * Get the validation rules that apply to the request.
++     *
++     * @return array<string, ValidationRule|array<mixed>|string>
++     */
++    public function rules(): array
++    {
++        return [
++            'template_id' => ['required', 'exists:process_templates,id'],
++            'name' => ['required', 'string', 'max:255'],
++            'context_data' => ['nullable', 'array'],
++        ];
++    }
++}
+diff --git a/app/Http/Resources/ProcessInstanceResource.php b/app/Http/Resources/ProcessInstanceResource.php
+new file mode 100644
+index 0000000..b2440fc
+--- /dev/null
++++ b/app/Http/Resources/ProcessInstanceResource.php
+@@ -0,0 +1,54 @@
++<?php
++
++namespace App\Http\Resources;
++
++use Illuminate\Http\Request;
++use Illuminate\Http\Resources\Json\JsonResource;
++
++class ProcessInstanceResource extends JsonResource
++{
++    /**
++     * Transform the resource into an array.
++     *
++     * @return array<string, mixed>
++     */
++    public function toArray(Request $request): array
++    {
++        return [
++            'id' => $this->id,
++            'template_id' => $this->template_id,
++            'template_name' => $this->template->name,
++            'name' => $this->name,
++            'status' => $this->status->getValue(),
++            'launched_at' => $this->launched_at?->format('Y-m-d H:i:s'),
++            'completed_at' => $this->completed_at?->format('Y-m-d H:i:s'),
++            'launched_by' => $this->launched_by,
++            'creator_name' => $this->creator->name,
++            'progress' => $this->getProgress(),
++            'current_step' => $this->getCurrentStepName(),
++            'created_at' => $this->created_at->format('Y-m-d H:i:s'),
++        ];
++    }
++
++    private function getProgress(): int
++    {
++        $total = $this->stepExecutions()->count();
++        if ($total === 0) {
++            return 0;
++        }
++
++        $completed = $this->stepExecutions()->where('status', 'completed')->count();
++
++        return (int) (($completed / $total) * 100);
++    }
++
++    private function getCurrentStepName(): string
++    {
++        $current = $this->stepExecutions()
++            ->whereIn('status', ['pending', 'in_progress'])
++            ->orderBy('order')
++            ->first();
++
++        return $current ? $current->name : ($this->status->getValue() === 'completed' ? 'Đã hoàn thành' : 'N/A');
++    }
++}
+diff --git a/app/Http/Resources/StepExecutionResource.php b/app/Http/Resources/StepExecutionResource.php
+new file mode 100644
+index 0000000..aefd28b
+--- /dev/null
++++ b/app/Http/Resources/StepExecutionResource.php
+@@ -0,0 +1,33 @@
++<?php
++
++namespace App\Http\Resources;
++
++use Illuminate\Http\Request;
++use Illuminate\Http\Resources\Json\JsonResource;
++
++class StepExecutionResource extends JsonResource
++{
++    /**
++     * Transform the resource into an array.
++     *
++     * @return array<string, mixed>
++     */
++    public function toArray(Request $request): array
++    {
++        return [
++            'id' => $this->id,
++            'instance_id' => $this->instance_id,
++            'name' => $this->name,
++            'order' => $this->order,
++            'status' => $this->status->getValue(),
++            'assigned_to' => $this->assigned_to,
++            'assignee_name' => $this->assignee?->name,
++            'started_at' => $this->started_at?->format('Y-m-d H:i:s'),
++            'deadline_at' => $this->deadline_at?->format('Y-m-d H:i:s'),
++            'completed_at' => $this->completed_at?->format('Y-m-d H:i:s'),
++            'completed_by' => $this->completed_by,
++            'finisher_name' => $this->finisher?->name,
++            'completion_notes' => $this->completion_notes,
++        ];
++    }
++}
+diff --git a/app/Models/ProcessInstance.php b/app/Models/ProcessInstance.php
+index 8625b5a..61736f5 100644
+--- a/app/Models/ProcessInstance.php
++++ b/app/Models/ProcessInstance.php
+@@ -2,28 +2,36 @@
+ 
+ namespace App\Models;
+ 
++use App\States\ProcessInstance\ProcessInstanceState;
+ use Illuminate\Database\Eloquent\Factories\HasFactory;
+ use Illuminate\Database\Eloquent\Model;
+ use Illuminate\Database\Eloquent\Relations\BelongsTo;
++use Illuminate\Database\Eloquent\Relations\HasMany;
+ use Illuminate\Database\Eloquent\SoftDeletes;
++use Spatie\ModelStates\HasStates;
+ 
+ class ProcessInstance extends Model
+ {
+-    use HasFactory, SoftDeletes;
++    use HasFactory, HasStates, SoftDeletes;
+ 
+     protected $fillable = [
+         'template_id',
++        'name',
+         'template_snapshot_data',
++        'context_data',
+         'status',
+         'launched_at',
+         'completed_at',
+         'launched_by',
++        'created_for',
+     ];
+ 
+     protected function casts(): array
+     {
+         return [
+             'template_snapshot_data' => 'array',
++            'context_data' => 'array',
++            'status' => ProcessInstanceState::class,
+             'launched_at' => 'datetime',
+             'completed_at' => 'datetime',
+         ];
+@@ -38,4 +46,9 @@ public function creator(): BelongsTo
+     {
+         return $this->belongsTo(User::class, 'launched_by');
+     }
++
++    public function stepExecutions(): HasMany
++    {
++        return $this->hasMany(StepExecution::class, 'instance_id');
++    }
+ }
+diff --git a/app/Models/StepExecution.php b/app/Models/StepExecution.php
+new file mode 100644
+index 0000000..71ef4f1
+--- /dev/null
++++ b/app/Models/StepExecution.php
+@@ -0,0 +1,62 @@
++<?php
++
++namespace App\Models;
++
++use App\States\StepExecution\StepExecutionState;
++use Illuminate\Database\Eloquent\Factories\HasFactory;
++use Illuminate\Database\Eloquent\Model;
++use Illuminate\Database\Eloquent\Relations\BelongsTo;
++use Spatie\ModelStates\HasStates;
++
++class StepExecution extends Model
++{
++    use HasFactory, HasStates;
++
++    protected $fillable = [
++        'instance_id',
++        'step_definition_id',
++        'step_snapshot_data',
++        'name',
++        'order',
++        'status',
++        'assigned_to',
++        'started_at',
++        'deadline_at',
++        'completed_at',
++        'completed_by',
++        'completion_notes',
++        'deadline_notified_at',
++    ];
++
++    protected function casts(): array
++    {
++        return [
++            'step_snapshot_data' => 'array',
++            'status' => StepExecutionState::class,
++            'started_at' => 'datetime',
++            'deadline_at' => 'datetime',
++            'completed_at' => 'datetime',
++            'deadline_notified_at' => 'datetime',
++        ];
++    }
++
++    public function instance(): BelongsTo
++    {
++        return $this->belongsTo(ProcessInstance::class, 'instance_id');
++    }
++
++    public function definition(): BelongsTo
++    {
++        return $this->belongsTo(StepDefinition::class, 'step_definition_id');
++    }
++
++    public function assignee(): BelongsTo
++    {
++        return $this->belongsTo(User::class, 'assigned_to');
++    }
++
++    public function finisher(): BelongsTo
++    {
++        return $this->belongsTo(User::class, 'completed_by');
++    }
++}
+diff --git a/app/Policies/ProcessInstancePolicy.php b/app/Policies/ProcessInstancePolicy.php
+index 74c4528..fbb7f63 100644
+--- a/app/Policies/ProcessInstancePolicy.php
++++ b/app/Policies/ProcessInstancePolicy.php
+@@ -2,6 +2,7 @@
+ 
+ namespace App\Policies;
+ 
++use App\Models\ProcessInstance;
+ use App\Models\User;
+ 
+ class ProcessInstancePolicy
+@@ -12,51 +13,39 @@ public function viewAny(User $user): bool
+     }
+ 
+     /**
+-     * Ownership-aware check (ADR-004, P6 patch):
++     * Ownership-aware check (ADR-004):
+      * - admin/manager/process_designer: always allowed
+      * - executor: only if assigned to a step in this instance
+      * - beneficiary: only if instance was created for them
+-     *
+-     * ProcessInstance model created in Story 3.1; $instance will be typed as ProcessInstance $instance then.
+      */
+-    public function view(User $user, mixed $instance = null): bool
++    public function view(User $user, ProcessInstance $instance): bool
+     {
+         return match (true) {
+-            // P4: Accept mixed type for now (ProcessInstance model created in Story 3.1)
+             $user->hasRole(['admin', 'manager', 'process_designer']) => true,
+-            // P6: Executor can view if assigned to a step in this instance
+             $user->hasRole('executor') && $this->isExecutorAssignedToInstance($user, $instance) => true,
+-            // P6: Beneficiary can view if instance was created for them
+             $user->hasRole('beneficiary') && $this->isBeneficiaryForInstance($user, $instance) => true,
+             default => false,
+         };
+     }
+ 
+     /**
+-     * Check if executor is assigned to any step in this instance (P6).
+-     * Requires: ProcessInstance model with stepExecutions() relation.
++     * Check if executor is assigned to any step in this instance.
+      */
+-    private function isExecutorAssignedToInstance(User $user, mixed $instance): bool
++    private function isExecutorAssignedToInstance(User $user, ProcessInstance $instance): bool
+     {
+-        if (! is_object($instance) || ! method_exists($instance, 'stepExecutions')) {
+-            return false;
+-        }
+-
+         return $instance->stepExecutions()
+             ->where('assigned_to', $user->id)
+             ->exists();
+     }
+ 
+     /**
+-     * Check if beneficiary is the recipient of this instance (P6).
+-     * Requires: ProcessInstance model with created_for attribute/relation.
++     * Check if beneficiary is the recipient of this instance.
+      */
+-    private function isBeneficiaryForInstance(User $user, mixed $instance): bool
++    private function isBeneficiaryForInstance(User $user, ProcessInstance $instance): bool
+     {
+-        if (! is_object($instance)) {
+-            return false;
+-        }
+-
++        // For now, created_for might be stored in context_data or a dedicated column.
++        // PRD says Manager provides list of beneficiaries.
++        // ADR-017 mentions created_for.
+         return $instance->created_for === $user->id;
+     }
+ 
+@@ -65,17 +54,27 @@ public function create(User $user): bool
+         return $user->hasPermissionTo('launch_instances');
+     }
+ 
+-    public function cancel(User $user): bool
++    public function update(User $user, ProcessInstance $instance): bool
++    {
++        return $user->hasRole(['admin', 'manager']);
++    }
++
++    public function delete(User $user, ProcessInstance $instance): bool
++    {
++        return $user->hasRole('admin');
++    }
++
++    public function cancel(User $user, ProcessInstance $instance): bool
+     {
+         return $user->hasRole(['admin', 'manager']);
+     }
+ 
+-    public function override(User $user): bool
++    public function override(User $user, ProcessInstance $instance): bool
+     {
+         return $user->hasRole(['admin', 'manager']);
+     }
+ 
+-    public function ping(User $user): bool
++    public function ping(User $user, ProcessInstance $instance): bool
+     {
+         return $user->hasRole(['admin', 'manager']);
+     }
+diff --git a/app/Policies/StepExecutionPolicy.php b/app/Policies/StepExecutionPolicy.php
+index 5d013de..f8bdfdc 100644
+--- a/app/Policies/StepExecutionPolicy.php
++++ b/app/Policies/StepExecutionPolicy.php
+@@ -2,22 +2,28 @@
+ 
+ namespace App\Policies;
+ 
++use App\Models\StepExecution;
+ use App\Models\User;
+ 
+ class StepExecutionPolicy
+ {
+-    public function view(User $user): bool
++    /**
++     * Determine if the user can acknowledge/complete the step.
++     * Rule: Only the assigned user or an admin/manager (for future override) can act.
++     * In this story, we focus on the Executor (assigned user).
++     */
++    public function update(User $user, StepExecution $step): bool
+     {
+-        return $user->hasRole(['admin', 'manager', 'process_designer', 'executor']);
++        return $user->id === $step->assigned_to || $user->hasRole(['admin', 'manager']);
+     }
+ 
+-    public function complete(User $user): bool
++    public function acknowledge(User $user, StepExecution $step): bool
+     {
+-        return $user->hasPermissionTo('complete_assigned_steps');
++        return $user->id === $step->assigned_to && $step->status->getValue() === 'pending';
+     }
+ 
+-    public function escalate(User $user): bool
++    public function complete(User $user, StepExecution $step): bool
+     {
+-        return $user->hasRole(['admin', 'manager']);
++        return $user->id === $step->assigned_to && $step->status->getValue() === 'in_progress';
+     }
+ }
+diff --git a/app/States/ProcessInstance/Cancelled.php b/app/States/ProcessInstance/Cancelled.php
+new file mode 100644
+index 0000000..f7d7397
+--- /dev/null
++++ b/app/States/ProcessInstance/Cancelled.php
+@@ -0,0 +1,13 @@
++<?php
++
++namespace App\States\ProcessInstance;
++
++class Cancelled extends ProcessInstanceState
++{
++    public static $name = 'cancelled';
++
++    public function getValue(): string
++    {
++        return 'cancelled';
++    }
++}
+diff --git a/app/States/ProcessInstance/Completed.php b/app/States/ProcessInstance/Completed.php
+new file mode 100644
+index 0000000..f821802
+--- /dev/null
++++ b/app/States/ProcessInstance/Completed.php
+@@ -0,0 +1,13 @@
++<?php
++
++namespace App\States\ProcessInstance;
++
++class Completed extends ProcessInstanceState
++{
++    public static $name = 'completed';
++
++    public function getValue(): string
++    {
++        return 'completed';
++    }
++}
+diff --git a/app/States/ProcessInstance/Paused.php b/app/States/ProcessInstance/Paused.php
+new file mode 100644
+index 0000000..e7c9fa6
+--- /dev/null
++++ b/app/States/ProcessInstance/Paused.php
+@@ -0,0 +1,13 @@
++<?php
++
++namespace App\States\ProcessInstance;
++
++class Paused extends ProcessInstanceState
++{
++    public static $name = 'paused';
++
++    public function getValue(): string
++    {
++        return 'paused';
++    }
++}
+diff --git a/app/States/ProcessInstance/Pending.php b/app/States/ProcessInstance/Pending.php
+new file mode 100644
+index 0000000..a7a61b3
+--- /dev/null
++++ b/app/States/ProcessInstance/Pending.php
+@@ -0,0 +1,13 @@
++<?php
++
++namespace App\States\ProcessInstance;
++
++class Pending extends ProcessInstanceState
++{
++    public static $name = 'pending';
++
++    public function getValue(): string
++    {
++        return 'pending';
++    }
++}
+diff --git a/app/States/ProcessInstance/ProcessInstanceState.php b/app/States/ProcessInstance/ProcessInstanceState.php
+new file mode 100644
+index 0000000..f4111a5
+--- /dev/null
++++ b/app/States/ProcessInstance/ProcessInstanceState.php
+@@ -0,0 +1,23 @@
++<?php
++
++namespace App\States\ProcessInstance;
++
++use Spatie\ModelStates\State;
++use Spatie\ModelStates\StateConfig;
++
++abstract class ProcessInstanceState extends State
++{
++    public static function config(): StateConfig
++    {
++        return parent::config()
++            ->default(Pending::class)
++            ->allowTransition(Pending::class, Running::class)
++            ->allowTransition(Running::class, Completed::class)
++            ->allowTransition(Running::class, Cancelled::class)
++            ->allowTransition(Running::class, Paused::class)
++            ->allowTransition(Paused::class, Running::class)
++            ->allowTransition(Pending::class, Cancelled::class);
++    }
++
++    // abstract public function getValue(): string;
++}
+diff --git a/app/States/ProcessInstance/Running.php b/app/States/ProcessInstance/Running.php
+new file mode 100644
+index 0000000..64926df
+--- /dev/null
++++ b/app/States/ProcessInstance/Running.php
+@@ -0,0 +1,13 @@
++<?php
++
++namespace App\States\ProcessInstance;
++
++class Running extends ProcessInstanceState
++{
++    public static $name = 'running';
++
++    public function getValue(): string
++    {
++        return 'running';
++    }
++}
+diff --git a/app/States/StepExecution/Blocked.php b/app/States/StepExecution/Blocked.php
+new file mode 100644
+index 0000000..29fd2d1
+--- /dev/null
++++ b/app/States/StepExecution/Blocked.php
+@@ -0,0 +1,13 @@
++<?php
++
++namespace App\States\StepExecution;
++
++class Blocked extends StepExecutionState
++{
++    public static $name = 'blocked';
++
++    public function getValue(): string
++    {
++        return 'blocked';
++    }
++}
+diff --git a/app/States/StepExecution/Completed.php b/app/States/StepExecution/Completed.php
+new file mode 100644
+index 0000000..403dc0b
+--- /dev/null
++++ b/app/States/StepExecution/Completed.php
+@@ -0,0 +1,13 @@
++<?php
++
++namespace App\States\StepExecution;
++
++class Completed extends StepExecutionState
++{
++    public static $name = 'completed';
++
++    public function getValue(): string
++    {
++        return 'completed';
++    }
++}
+diff --git a/app/States/StepExecution/Escalated.php b/app/States/StepExecution/Escalated.php
+new file mode 100644
+index 0000000..b42080d
+--- /dev/null
++++ b/app/States/StepExecution/Escalated.php
+@@ -0,0 +1,13 @@
++<?php
++
++namespace App\States\StepExecution;
++
++class Escalated extends StepExecutionState
++{
++    public static $name = 'escalated';
++
++    public function getValue(): string
++    {
++        return 'escalated';
++    }
++}
+diff --git a/app/States/StepExecution/InProgress.php b/app/States/StepExecution/InProgress.php
+new file mode 100644
+index 0000000..8d2fce2
+--- /dev/null
++++ b/app/States/StepExecution/InProgress.php
+@@ -0,0 +1,13 @@
++<?php
++
++namespace App\States\StepExecution;
++
++class InProgress extends StepExecutionState
++{
++    public static $name = 'in_progress';
++
++    public function getValue(): string
++    {
++        return 'in_progress';
++    }
++}
+diff --git a/app/States/StepExecution/Pending.php b/app/States/StepExecution/Pending.php
+new file mode 100644
+index 0000000..1e2648b
+--- /dev/null
++++ b/app/States/StepExecution/Pending.php
+@@ -0,0 +1,13 @@
++<?php
++
++namespace App\States\StepExecution;
++
++class Pending extends StepExecutionState
++{
++    public static $name = 'pending';
++
++    public function getValue(): string
++    {
++        return 'pending';
++    }
++}
+diff --git a/app/States/StepExecution/Skipped.php b/app/States/StepExecution/Skipped.php
+new file mode 100644
+index 0000000..61cc148
+--- /dev/null
++++ b/app/States/StepExecution/Skipped.php
+@@ -0,0 +1,13 @@
++<?php
++
++namespace App\States\StepExecution;
++
++class Skipped extends StepExecutionState
++{
++    public static $name = 'skipped';
++
++    public function getValue(): string
++    {
++        return 'skipped';
++    }
++}
+diff --git a/app/States/StepExecution/StepExecutionState.php b/app/States/StepExecution/StepExecutionState.php
+new file mode 100644
+index 0000000..bda2d23
+--- /dev/null
++++ b/app/States/StepExecution/StepExecutionState.php
+@@ -0,0 +1,24 @@
++<?php
++
++namespace App\States\StepExecution;
++
++use Spatie\ModelStates\State;
++use Spatie\ModelStates\StateConfig;
++
++abstract class StepExecutionState extends State
++{
++    public static function config(): StateConfig
++    {
++        return parent::config()
++            ->default(Pending::class)
++            ->allowTransition(Pending::class, InProgress::class)
++            ->allowTransition(InProgress::class, Completed::class)
++            ->allowTransition(InProgress::class, Blocked::class)
++            ->allowTransition(Blocked::class, InProgress::class)
++            ->allowTransition(InProgress::class, Escalated::class)
++            ->allowTransition(Pending::class, Skipped::class) // For manager override
++            ->allowTransition(InProgress::class, Skipped::class);
++    }
++
++    // abstract public function getValue(): string;
++}
+diff --git a/bootstrap/app.php b/bootstrap/app.php
+index b29a0be..f010949 100644
+--- a/bootstrap/app.php
++++ b/bootstrap/app.php
+@@ -15,6 +15,7 @@
+     ->withRouting(
+         web: __DIR__.'/../routes/web.php',
+         commands: __DIR__.'/../routes/console.php',
++        channels: __DIR__.'/../routes/channels.php',
+         health: '/up',
+     )
+     ->withMiddleware(function (Middleware $middleware): void {
+@@ -42,7 +43,5 @@
+                 'ip' => $request->ip(),
+                 'message' => $e->getMessage(),
+             ]);
+-            // P1: Re-throw to ensure 403 response reaches client
+-            throw $e;
+         });
+     })->create();
+diff --git a/composer.json b/composer.json
+index 4d07fc0..32d7a9a 100644
+--- a/composer.json
++++ b/composer.json
+@@ -22,6 +22,7 @@
+     "require-dev": {
+         "fakerphp/faker": "^1.24",
+         "larastan/larastan": "^3.9",
++        "laravel/boost": "^2.4",
+         "laravel/pail": "^1.2.5",
+         "laravel/pint": "^1.27",
+         "laravel/sail": "^1.53",
+diff --git a/composer.lock b/composer.lock
+index 484388a..98cdd4d 100644
+--- a/composer.lock
++++ b/composer.lock
+@@ -4,7 +4,7 @@
+         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+         "This file is @generated automatically"
+     ],
+-    "content-hash": "aacc83c00874179fab83fa8bf57e501d",
++    "content-hash": "20c8c8b05e8726dd6034a9d10417b6a7",
+     "packages": [
+         {
+             "name": "bacon/bacon-qr-code",
+@@ -7449,6 +7449,145 @@
+             ],
+             "time": "2026-04-02T07:08:56+00:00"
+         },
++        {
++            "name": "laravel/boost",
++            "version": "v2.4.6",
++            "source": {
++                "type": "git",
++                "url": "https://github.com/laravel/boost.git",
++                "reference": "c9ea6368c66f7c0e6a9b26706b401de900cdb9ac"
++            },
++            "dist": {
++                "type": "zip",
++                "url": "https://api.github.com/repos/laravel/boost/zipball/c9ea6368c66f7c0e6a9b26706b401de900cdb9ac",
++                "reference": "c9ea6368c66f7c0e6a9b26706b401de900cdb9ac",
++                "shasum": ""
++            },
++            "require": {
++                "guzzlehttp/guzzle": "^7.9",
++                "illuminate/console": "^11.45.3|^12.41.1|^13.0",
++                "illuminate/contracts": "^11.45.3|^12.41.1|^13.0",
++                "illuminate/routing": "^11.45.3|^12.41.1|^13.0",
++                "illuminate/support": "^11.45.3|^12.41.1|^13.0",
++                "laravel/mcp": "^0.5.1|^0.6.0|^0.7.0",
++                "laravel/prompts": "^0.3.10",
++                "laravel/roster": "^0.5.0",
++                "php": "^8.2"
++            },
++            "require-dev": {
++                "laravel/pint": "^1.27.0",
++                "mockery/mockery": "^1.6.12",
++                "orchestra/testbench": "^9.15.0|^10.6|^11.0",
++                "pestphp/pest": "^2.36.0|^3.8.4|^4.1.5",
++                "phpstan/phpstan": "^2.1.27",
++                "rector/rector": "^2.1"
++            },
++            "type": "library",
++            "extra": {
++                "laravel": {
++                    "providers": [
++                        "Laravel\\Boost\\BoostServiceProvider"
++                    ]
++                },
++                "branch-alias": {
++                    "dev-master": "1.x-dev"
++                }
++            },
++            "autoload": {
++                "psr-4": {
++                    "Laravel\\Boost\\": "src/"
++                }
++            },
++            "notification-url": "https://packagist.org/downloads/",
++            "license": [
++                "MIT"
++            ],
++            "description": "Laravel Boost accelerates AI-assisted development by providing the essential context and structure that AI needs to generate high-quality, Laravel-specific code.",
++            "homepage": "https://github.com/laravel/boost",
++            "keywords": [
++                "ai",
++                "dev",
++                "laravel"
++            ],
++            "support": {
++                "issues": "https://github.com/laravel/boost/issues",
++                "source": "https://github.com/laravel/boost"
++            },
++            "time": "2026-04-28T11:52:01+00:00"
++        },
++        {
++            "name": "laravel/mcp",
++            "version": "v0.7.0",
++            "source": {
++                "type": "git",
++                "url": "https://github.com/laravel/mcp.git",
++                "reference": "3513b4feca5f1678be4d2261dcfa8e456436d02a"
++            },
++            "dist": {
++                "type": "zip",
++                "url": "https://api.github.com/repos/laravel/mcp/zipball/3513b4feca5f1678be4d2261dcfa8e456436d02a",
++                "reference": "3513b4feca5f1678be4d2261dcfa8e456436d02a",
++                "shasum": ""
++            },
++            "require": {
++                "ext-json": "*",
++                "ext-mbstring": "*",
++                "illuminate/console": "^11.45.3|^12.41.1|^13.0",
++                "illuminate/container": "^11.45.3|^12.41.1|^13.0",
++                "illuminate/contracts": "^11.45.3|^12.41.1|^13.0",
++                "illuminate/http": "^11.45.3|^12.41.1|^13.0",
++                "illuminate/json-schema": "^12.41.1|^13.0",
++                "illuminate/routing": "^11.45.3|^12.41.1|^13.0",
++                "illuminate/support": "^11.45.3|^12.41.1|^13.0",
++                "illuminate/validation": "^11.45.3|^12.41.1|^13.0",
++                "php": "^8.2"
++            },
++            "require-dev": {
++                "laravel/pint": "^1.20",
++                "orchestra/testbench": "^9.15|^10.8|^11.0",
++                "pestphp/pest": "^3.8.5|^4.3.2",
++                "phpstan/phpstan": "^2.1.27",
++                "rector/rector": "^2.2.4"
++            },
++            "type": "library",
++            "extra": {
++                "laravel": {
++                    "aliases": {
++                        "Mcp": "Laravel\\Mcp\\Server\\Facades\\Mcp"
++                    },
++                    "providers": [
++                        "Laravel\\Mcp\\Server\\McpServiceProvider"
++                    ]
++                }
++            },
++            "autoload": {
++                "psr-4": {
++                    "Laravel\\Mcp\\": "src/",
++                    "Laravel\\Mcp\\Server\\": "src/Server/"
++                }
++            },
++            "notification-url": "https://packagist.org/downloads/",
++            "license": [
++                "MIT"
++            ],
++            "authors": [
++                {
++                    "name": "Taylor Otwell",
++                    "email": "taylor@laravel.com"
++                }
++            ],
++            "description": "Rapidly build MCP servers for your Laravel applications.",
++            "homepage": "https://github.com/laravel/mcp",
++            "keywords": [
++                "laravel",
++                "mcp"
++            ],
++            "support": {
++                "issues": "https://github.com/laravel/mcp/issues",
++                "source": "https://github.com/laravel/mcp"
++            },
++            "time": "2026-04-21T10:23:03+00:00"
++        },
+         {
+             "name": "laravel/pail",
+             "version": "v1.2.6",
+@@ -7597,6 +7736,67 @@
+             },
+             "time": "2026-03-12T15:51:39+00:00"
+         },
++        {
++            "name": "laravel/roster",
++            "version": "v0.5.1",
++            "source": {
++                "type": "git",
++                "url": "https://github.com/laravel/roster.git",
++                "reference": "5089de7615f72f78e831590ff9d0435fed0102bb"
++            },
++            "dist": {
++                "type": "zip",
++                "url": "https://api.github.com/repos/laravel/roster/zipball/5089de7615f72f78e831590ff9d0435fed0102bb",
++                "reference": "5089de7615f72f78e831590ff9d0435fed0102bb",
++                "shasum": ""
++            },
++            "require": {
++                "illuminate/console": "^11.0|^12.0|^13.0",
++                "illuminate/contracts": "^11.0|^12.0|^13.0",
++                "illuminate/routing": "^11.0|^12.0|^13.0",
++                "illuminate/support": "^11.0|^12.0|^13.0",
++                "php": "^8.2",
++                "symfony/yaml": "^7.2|^8.0"
++            },
++            "require-dev": {
++                "laravel/pint": "^1.14",
++                "mockery/mockery": "^1.6",
++                "orchestra/testbench": "^9.0|^10.0|^11.0",
++                "pestphp/pest": "^3.0|^4.1",
++                "phpstan/phpstan": "^2.0"
++            },
++            "type": "library",
++            "extra": {
++                "laravel": {
++                    "providers": [
++                        "Laravel\\Roster\\RosterServiceProvider"
++                    ]
++                },
++                "branch-alias": {
++                    "dev-master": "1.x-dev"
++                }
++            },
++            "autoload": {
++                "psr-4": {
++                    "Laravel\\Roster\\": "src/"
++                }
++            },
++            "notification-url": "https://packagist.org/downloads/",
++            "license": [
++                "MIT"
++            ],
++            "description": "Detect packages & approaches in use within a Laravel project",
++            "homepage": "https://github.com/laravel/roster",
++            "keywords": [
++                "dev",
++                "laravel"
++            ],
++            "support": {
++                "issues": "https://github.com/laravel/roster/issues",
++                "source": "https://github.com/laravel/roster"
++            },
++            "time": "2026-03-05T07:58:43+00:00"
++        },
+         {
+             "name": "laravel/sail",
+             "version": "v1.56.0",
+diff --git a/database/migrations/2026_05_14_162153_create_process_instances_table.php b/database/migrations/2026_05_14_162153_create_process_instances_table.php
+index ac70778..106dcb2 100644
+--- a/database/migrations/2026_05_14_162153_create_process_instances_table.php
++++ b/database/migrations/2026_05_14_162153_create_process_instances_table.php
+@@ -17,6 +17,7 @@ public function up(): void
+                 ->constrained('process_templates')
+                 ->restrictOnDelete(); // AC6 requirement
+             $blueprint->jsonb('template_snapshot_data'); // ADR-006: Immutable snapshot
++
+             $blueprint->string('status')->default('running'); // running, completed, cancelled
+             $blueprint->timestamp('launched_at')->useCurrent();
+             $blueprint->timestamp('completed_at')->nullable();
+diff --git a/database/migrations/2026_05_15_120155_create_step_executions_table.php b/database/migrations/2026_05_15_120155_create_step_executions_table.php
+new file mode 100644
+index 0000000..85c2567
+--- /dev/null
++++ b/database/migrations/2026_05_15_120155_create_step_executions_table.php
+@@ -0,0 +1,60 @@
++<?php
++
++use Illuminate\Database\Migrations\Migration;
++use Illuminate\Database\Schema\Blueprint;
++use Illuminate\Support\Facades\Schema;
++
++return new class extends Migration
++{
++    /**
++     * Run the migrations.
++     */
++    public function up(): void
++    {
++        Schema::create('step_executions', function (Blueprint $table) {
++            $table->id();
++            $table->foreignId('instance_id')
++                ->constrained('process_instances')
++                ->cascadeOnDelete(); // ADR-043
++            $table->foreignId('step_definition_id')
++                ->nullable()
++                ->constrained('step_definitions')
++                ->nullOnDelete();
++            $table->jsonb('step_snapshot_data'); // ADR-037
++            $table->string('name');
++            $table->integer('order');
++            $table->string('status'); // Will be handled by spatie/laravel-model-states
++            $table->foreignId('assigned_to')
++                ->nullable()
++                ->constrained('users')
++                ->nullOnDelete();
++            $table->timestamp('started_at')->nullable();
++            $table->timestamp('deadline_at')->nullable();
++            $table->timestamp('completed_at')->nullable();
++            $table->foreignId('completed_by')
++                ->nullable()
++                ->constrained('users')
++                ->nullOnDelete();
++            $table->text('completion_notes')->nullable();
++            $table->timestamp('deadline_notified_at')->nullable();
++            $table->timestamps();
++
++            // ADR-042: Composite Indexes
++            $table->index(['status', 'deadline_at']);
++            $table->index(['assigned_to', 'status', 'deadline_at']);
++            $table->index(['instance_id', 'order']);
++            $table->index(['deadline_at', 'deadline_notified_at', 'status']);
++
++            // ADR-043: Unique constraint
++            $table->unique(['instance_id', 'order']);
++        });
++    }
++
++    /**
++     * Reverse the migrations.
++     */
++    public function down(): void
++    {
++        Schema::dropIfExists('step_executions');
++    }
++};
+diff --git a/database/migrations/2026_05_15_120618_add_name_and_beneficiary_to_process_instances_table.php b/database/migrations/2026_05_15_120618_add_name_and_beneficiary_to_process_instances_table.php
+new file mode 100644
+index 0000000..9491dfb
+--- /dev/null
++++ b/database/migrations/2026_05_15_120618_add_name_and_beneficiary_to_process_instances_table.php
+@@ -0,0 +1,35 @@
++<?php
++
++use Illuminate\Database\Migrations\Migration;
++use Illuminate\Database\Schema\Blueprint;
++use Illuminate\Support\Facades\Schema;
++
++return new class extends Migration
++{
++    /**
++     * Run the migrations.
++     */
++    public function up(): void
++    {
++        Schema::table('process_instances', function (Blueprint $table) {
++            $table->string('name')->after('template_id');
++            $table->jsonb('context_data')->nullable()->after('template_snapshot_data');
++            $table->foreignId('created_for')
++                ->after('launched_by')
++                ->nullable()
++                ->constrained('users')
++                ->nullOnDelete();
++        });
++    }
++
++    /**
++     * Reverse the migrations.
++     */
++    public function down(): void
++    {
++        Schema::table('process_instances', function (Blueprint $table) {
++            $table->dropForeign(['created_for']);
++            $table->dropColumn(['name', 'created_for']);
++        });
++    }
++};
+diff --git a/resources/js/pages/Instances/Create.vue b/resources/js/pages/Instances/Create.vue
+new file mode 100644
+index 0000000..10e1494
+--- /dev/null
++++ b/resources/js/pages/Instances/Create.vue
+@@ -0,0 +1,107 @@
++<script setup lang="ts">
++import { useForm, Head } from '@inertiajs/vue3';
++import { Button } from '@/components/ui/button';
++import { Input } from '@/components/ui/input';
++import { Label } from '@/components/ui/label';
++import {
++    Select,
++    SelectContent,
++    SelectItem,
++    SelectTrigger,
++    SelectValue,
++} from '@/components/ui/select';
++import { Textarea } from '@/components/ui/textarea';
++import type { ProcessTemplate } from '@/types';
++
++interface Props {
++    templates: ProcessTemplate[];
++}
++
++defineProps<Props>();
++
++defineOptions({
++    layout: {
++        breadcrumbs: [
++            { title: 'Dashboard', href: '/dashboard' },
++            { title: 'Instances', href: '/process-instances' },
++            { title: 'Khởi động quy trình', href: '/process-instances/create' },
++        ],
++    },
++});
++
++const form = useForm({
++    template_id: '',
++    name: '',
++    context_data: '',
++});
++
++function submit() {
++    form.post('/process-instances', {
++        preserveScroll: true,
++    });
++}
++</script>
++
++<template>
++    <Head title="Khởi động quy trình" />
++
++    <div class="max-w-2xl mx-auto p-6 flex flex-col gap-6">
++        <div>
++            <h1 class="text-2xl font-semibold">Khởi động quy trình mới</h1>
++            <p class="text-muted-foreground mt-1">Chọn một template và đặt tên cho lần chạy này.</p>
++        </div>
++
++        <div class="rounded-md border p-6">
++            <form @submit.prevent="submit" class="flex flex-col gap-6">
++                <div class="flex flex-col gap-1.5">
++                    <Label for="template">Chọn template <span class="text-destructive">*</span></Label>
++                    <Select v-model="form.template_id">
++                        <SelectTrigger id="template" :class="{ 'border-destructive': form.errors.template_id }">
++                            <SelectValue placeholder="Chọn một quy trình đã công bố..." />
++                        </SelectTrigger>
++                        <SelectContent>
++                            <SelectItem v-for="template in templates" :key="template.id" :value="template.id.toString()">
++                                {{ template.name }} ({{ template.step_count }} bước)
++                            </SelectItem>
++                        </SelectContent>
++                    </Select>
++                    <p v-if="form.errors.template_id" class="text-destructive text-sm">{{ form.errors.template_id }}</p>
++                </div>
++
++                <div class="flex flex-col gap-1.5">
++                    <Label for="instance-name">Tên lần chạy quy trình <span class="text-destructive">*</span></Label>
++                    <Input
++                        id="instance-name"
++                        v-model="form.name"
++                        placeholder="Ví dụ: Onboarding nhân viên mới - Nguyễn Văn A"
++                        :class="{ 'border-destructive': form.errors.name }"
++                    />
++                    <p v-if="form.errors.name" class="text-destructive text-sm">{{ form.errors.name }}</p>
++                    <p class="text-xs text-muted-foreground">Tên này giúp bạn phân biệt các lần chạy khác nhau của cùng một template.</p>
++                </div>
++
++                <div class="flex flex-col gap-1.5">
++                    <Label for="context">Ghi chú / Thông tin bổ sung</Label>
++                    <Textarea
++                        id="context"
++                        placeholder="Nhập thông tin context nếu cần..."
++                        rows="4"
++                    />
++                    <p v-if="form.errors.context_data" class="text-destructive text-sm">{{ form.errors.context_data }}</p>
++                </div>
++
++                <div class="flex items-center gap-4 justify-end pt-4 border-t">
++                    <Button variant="outline" type="button" as="a" href="/process-instances">Hủy</Button>
++                    <Button type="submit" :disabled="form.processing">
++                        <span v-if="form.processing">Đang khởi động...</span>
++                        <span v-else>Khởi động quy trình</span>
++                    </Button>
++                </div>
++            </form>
++        </div>
++    </div>
++</template>
++      </form>
++        </div>
++    </div>
++</template>
+diff --git a/resources/js/pages/Instances/Index.vue b/resources/js/pages/Instances/Index.vue
+new file mode 100644
+index 0000000..f07d108
+--- /dev/null
++++ b/resources/js/pages/Instances/Index.vue
+@@ -0,0 +1,125 @@
++<script setup lang="ts">
++import { Head } from '@inertiajs/vue3';
++import { Badge } from '@/components/ui/badge';
++import { Button } from '@/components/ui/button';
++import {
++    Table,
++    TableBody,
++    TableCell,
++    TableHead,
++    TableHeader,
++    TableRow,
++} from '@/components/ui/table';
++
++interface Instance {
++    id: number;
++    name: string;
++    template_name: string;
++    status: string;
++    progress: number;
++    current_step: string;
++    launched_at: string;
++    creator_name: string;
++}
++
++interface Props {
++    instances: Instance[];
++}
++
++defineProps<Props>();
++
++defineOptions({
++    layout: {
++        breadcrumbs: [
++            { title: 'Dashboard', href: '/dashboard' },
++            { title: 'Instances', href: '/process-instances' },
++        ],
++    },
++});
++
++function getStatusVariant(status: string) {
++    switch (status) {
++        case 'running': return 'default';
++        case 'completed': return 'success';
++        case 'cancelled': return 'destructive';
++        case 'paused': return 'warning';
++        default: return 'secondary';
++    }
++}
++
++function formatDate(isoString: string): string {
++    if (!isoString) return 'N/A';
++    return new Date(isoString).toLocaleDateString('vi-VN', {
++        day: '2-digit',
++        month: '2-digit',
++        year: 'numeric',
++        hour: '2-digit',
++        minute: '2-digit',
++    });
++}
++</script>
++
++<template>
++    <Head title="Danh sách quy trình đang chạy" />
++
++    <div class="flex flex-col gap-6 p-6">
++        <div class="flex items-center justify-between">
++            <h1 class="text-2xl font-semibold">Quy trình đang chạy</h1>
++            <Button as="a" href="/process-instances/create">Khởi động quy trình mới</Button>
++        </div>
++
++        <div class="rounded-md border">
++            <Table>
++                <TableHeader>
++                    <TableRow>
++                        <TableHead>Tên quy trình</TableHead>
++                        <TableHead>Template gốc</TableHead>
++                        <TableHead>Tiến độ</TableHead>
++                        <TableHead>Bước hiện tại</TableHead>
++                        <TableHead>Trạng thái</TableHead>
++                        <TableHead>Ngày khởi động</TableHead>
++                        <TableHead class="text-right">Thao tác</TableHead>
++                    </TableRow>
++                </TableHeader>
++                <TableBody>
++                    <TableRow v-for="instance in instances" :key="instance.id">
++                        <TableCell class="font-medium">
++                            <div class="flex flex-col">
++                                <span>{{ instance.name }}</span>
++                                <span class="text-xs text-muted-foreground">Người khởi động: {{ instance.creator_name }}</span>
++                            </div>
++                        </TableCell>
++                        <TableCell>{{ instance.template_name }}</TableCell>
++                        <TableCell>
++                            <div class="flex items-center gap-2">
++                                <div class="w-24 h-2 bg-secondary rounded-full overflow-hidden">
++                                    <div class="h-full bg-primary" :style="{ width: instance.progress + '%' }"></div>
++                                </div>
++                                <span class="text-xs font-medium">{{ instance.progress }}%</span>
++                            </div>
++                        </TableCell>
++                        <TableCell>{{ instance.current_step }}</TableCell>
++                        <TableCell>
++                            <Badge :variant="getStatusVariant(instance.status)">
++                                {{ instance.status }}
++                            </Badge>
++                        </TableCell>
++                        <TableCell class="text-sm text-muted-foreground">
++                            {{ formatDate(instance.launched_at) }}
++                        </TableCell>
++                        <TableCell class="text-right">
++                            <Button variant="outline" size="sm" as="a" :href="`/process-instances/${instance.id}`">
++                                Chi tiết
++                            </Button>
++                        </TableCell>
++                    </TableRow>
++                    <TableRow v-if="instances.length === 0">
++                        <TableCell colspan="7" class="text-muted-foreground py-8 text-center">
++                            Chưa có quy trình nào đang chạy. Nhấn "Khởi động quy trình mới" để bắt đầu.
++                        </TableCell>
++                    </TableRow>
++                </TableBody>
++            </Table>
++        </div>
++    </div>
++</template>
+diff --git a/resources/js/pages/Instances/Show.vue b/resources/js/pages/Instances/Show.vue
+new file mode 100644
+index 0000000..75ccb64
+--- /dev/null
++++ b/resources/js/pages/Instances/Show.vue
+@@ -0,0 +1,219 @@
++<script setup lang="ts">
++import { Head, useForm, usePage } from '@inertiajs/vue3';
++import { Badge } from '@/components/ui/badge';
++import { Button } from '@/components/ui/button';
++import {
++    Table,
++    TableBody,
++    TableCell,
++    TableHead,
++    TableHeader,
++    TableRow,
++} from '@/components/ui/table';
++import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
++import { Textarea } from '@/components/ui/textarea';
++import { Label } from '@/components/ui/label';
++import { ref } from 'vue';
++
++interface Instance {
++    id: number;
++    name: string;
++    template_name: string;
++    status: string;
++    progress: number;
++    launched_at: string;
++    creator_name: string;
++}
++
++interface Step {
++    id: number;
++    name: string;
++    order: number;
++    status: string;
++    assigned_to: number;
++    assignee_name: string;
++    deadline_at: string;
++    completed_at: string;
++    finisher_name: string;
++}
++
++interface Props {
++    instance: Instance;
++    steps: Step[];
++}
++
++const props = defineProps<Props>();
++
++defineOptions({
++    layout: {
++        breadcrumbs: [
++            { title: 'Dashboard', href: '/dashboard' },
++            { title: 'Instances', href: '/process-instances' },
++            { title: 'Chi tiết quy trình', href: '#' },
++        ],
++    },
++});
++
++const page = usePage();
++const authUser = page.props.auth?.user as { id: number } | null;
++
++const showNotesForm = ref<number | null>(null);
++const completeForm = useForm({
++    completion_notes: '',
++});
++
++function getStatusVariant(status: string) {
++    switch (status) {
++        case 'running': case 'in_progress': return 'default';
++        case 'completed': return 'success';
++        case 'cancelled': case 'escalated': return 'destructive';
++        case 'paused': case 'blocked': return 'warning';
++        default: return 'secondary';
++    }
++}
++
++function formatDate(isoString: string): string {
++    if (!isoString) return 'N/A';
++    return new Date(isoString).toLocaleDateString('vi-VN', {
++        day: '2-digit',
++        month: '2-digit',
++        year: 'numeric',
++        hour: '2-digit',
++        minute: '2-digit',
++    });
++}
++
++function acknowledge(stepId: number) {
++    useForm({}).post(`/step-executions/${stepId}/acknowledge`, {
++        preserveScroll: true,
++    });
++}
++
++function submitComplete(stepId: number) {
++    completeForm.post(`/step-executions/${stepId}/complete`, {
++        preserveScroll: true,
++        onSuccess: () => {
++            showNotesForm.value = null;
++            completeForm.reset();
++        }
++    });
++}
++
++function getFlash(key: string): string | null {
++    const flash = page.props.flash as Record<string, unknown> | undefined;
++    if (!flash || typeof flash[key] !== 'string') return null;
++    return flash[key];
++}
++</script>
++
++<template>
++    <Head :title="`Chi tiết: ${instance.name}`" />
++
++    <div class="flex flex-col gap-6 p-6">
++        <div class="flex items-center justify-between">
++            <h1 class="text-2xl font-semibold">{{ instance.name }}</h1>
++            <Badge :variant="getStatusVariant(instance.status)" class="text-sm">
++                {{ instance.status }}
++            </Badge>
++        </div>
++
++        <!-- Flash success message -->
++        <div
++            v-if="getFlash('success')"
++            class="rounded-md bg-green-50 p-4 text-sm text-green-700 border border-green-200"
++        >
++            {{ getFlash('success') }}
++        </div>
++
++        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
++            <Card>
++                <CardHeader class="pb-2">
++                    <CardTitle class="text-sm font-medium">Template gốc</CardTitle>
++                </CardHeader>
++                <CardContent>
++                    <div class="text-lg font-bold">{{ instance.template_name }}</div>
++                </CardContent>
++            </Card>
++            <Card>
++                <CardHeader class="pb-2">
++                    <CardTitle class="text-sm font-medium">Tiến độ</CardTitle>
++                </CardHeader>
++                <CardContent>
++                    <div class="text-lg font-bold">{{ instance.progress }}%</div>
++                    <div class="w-full h-2 bg-secondary rounded-full mt-2 overflow-hidden">
++                        <div class="h-full bg-primary" :style="{ width: instance.progress + '%' }"></div>
++                    </div>
++                </CardContent>
++            </Card>
++            <Card>
++                <CardHeader class="pb-2">
++                    <CardTitle class="text-sm font-medium">Thông tin khởi động</CardTitle>
++                </CardHeader>
++                <CardContent>
++                    <div class="text-sm">{{ instance.creator_name }}</div>
++                    <div class="text-xs text-muted-foreground">{{ formatDate(instance.launched_at) }}</div>
++                </CardContent>
++            </Card>
++        </div>
++
++        <div class="flex flex-col gap-4">
++            <h2 class="text-xl font-semibold">Danh sách các bước thực thi</h2>
++            <div class="rounded-md border">
++                <Table>
++                    <TableHeader>
++                        <TableRow>
++                            <TableHead class="w-12 text-center">#</TableHead>
++                            <TableHead>Tên bước</TableHead>
++                            <TableHead>Người phụ trách</TableHead>
++                            <TableHead>Trạng thái</TableHead>
++                            <TableHead>Thời hạn</TableHead>
++                            <TableHead>Thao tác / Kết quả</TableHead>
++                        </TableRow>
++                    </TableHeader>
++                    <TableBody>
++                        <TableRow v-for="step in steps" :key="step.id">
++                            <TableCell class="text-center font-medium">{{ step.order }}</TableCell>
++                            <TableCell>{{ step.name }}</TableCell>
++                            <TableCell>{{ step.assignee_name || 'N/A' }}</TableCell>
++                            <TableCell>
++                                <Badge :variant="getStatusVariant(step.status)">
++                                    {{ step.status }}
++                                </Badge>
++                            </TableCell>
++                            <TableCell class="text-sm">
++                                {{ formatDate(step.deadline_at) }}
++                            </TableCell>
++                            <TableCell class="text-sm min-w-[200px]">
++                                <!-- Interaction for Executor -->
++                                <div v-if="authUser && step.assigned_to === authUser.id && !step.completed_at">
++                                    <div v-if="step.status === 'pending'">
++                                        <Button size="sm" @click="acknowledge(step.id)">Xác nhận nhận việc</Button>
++                                    </div>
++                                    <div v-else-if="step.status === 'in_progress'" class="flex flex-col gap-2">
++                                        <div v-if="showNotesForm !== step.id">
++                                            <Button size="sm" variant="success" @click="showNotesForm = step.id">Hoàn thành</Button>
++                                        </div>
++                                        <div v-else class="flex flex-col gap-2 p-2 border rounded bg-muted/20">
++                                            <Label class="text-xs">Ghi chú hoàn thành (tùy chọn):</Label>
++                                            <Textarea v-model="completeForm.completion_notes" rows="2" class="text-xs" />
++                                            <div class="flex gap-2">
++                                                <Button size="xs" variant="ghost" @click="showNotesForm = null">Hủy</Button>
++                                                <Button size="xs" :disabled="completeForm.processing" @click="submitComplete(step.id)">Gửi hoàn thành</Button>
++                                            </div>
++                                        </div>
++                                    </div>
++                                </div>
++
++                                <div v-else-if="step.completed_at" class="flex flex-col">
++                                    <span>{{ formatDate(step.completed_at) }}</span>
++                                    <span class="text-xs text-muted-foreground">Bởi: {{ step.finisher_name }}</span>
++                                </div>
++                                <span v-else class="text-muted-foreground">---</span>
++                            </TableCell>
++                        </TableRow>
++                    </TableBody>
++                </Table>
++            </div>
++        </div>
++    </div>
++</template>
+diff --git a/routes/channels.php b/routes/channels.php
+new file mode 100644
+index 0000000..5d93945
+--- /dev/null
++++ b/routes/channels.php
+@@ -0,0 +1,15 @@
++<?php
++
++use Illuminate\Support\Facades\Broadcast;
++
++Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
++    return (int) $user->id === (int) $id;
++});
++
++Broadcast::channel('organization.{orgId}', function ($user, $orgId) {
++    return $user->hasAnyRole(['admin', 'manager', 'process_designer']);
++});
++
++Broadcast::channel('user.{userId}', function ($user, $userId) {
++    return (int) $user->id === (int) $userId;
++});
+diff --git a/routes/web.php b/routes/web.php
+index f1bbe73..57b5538 100644
+--- a/routes/web.php
++++ b/routes/web.php
+@@ -3,8 +3,10 @@
+ use App\Http\Controllers\Admin\SystemController;
+ use App\Http\Controllers\Admin\UserController;
+ use App\Http\Controllers\DashboardController;
++use App\Http\Controllers\ProcessInstanceController;
+ use App\Http\Controllers\ProcessTemplateController;
+ use App\Http\Controllers\StepDefinitionController;
++use App\Http\Controllers\StepExecutionController;
+ use Illuminate\Support\Facades\Route;
+ use Laravel\Fortify\Features;
+ 
+@@ -28,6 +30,16 @@
+         ->only(['store', 'update', 'destroy']);
+     Route::patch('step-definitions/{step_definition}/reorder', [StepDefinitionController::class, 'reorder'])
+         ->name('step-definitions.reorder');
++
++    // Story 3.1: Process instance execution
++    Route::resource('process-instances', ProcessInstanceController::class)
++        ->only(['index', 'create', 'store', 'show']);
++
++    // Story 3.2: Step execution interactions
++    Route::post('step-executions/{step_execution}/acknowledge', [StepExecutionController::class, 'acknowledge'])
++        ->name('step-executions.acknowledge');
++    Route::post('step-executions/{step_execution}/complete', [StepExecutionController::class, 'complete'])
++        ->name('step-executions.complete');
+ });
+ 
+ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+diff --git a/tests/Feature/Process/LaunchProcessInstanceTest.php b/tests/Feature/Process/LaunchProcessInstanceTest.php
+new file mode 100644
+index 0000000..50ed48b
+--- /dev/null
++++ b/tests/Feature/Process/LaunchProcessInstanceTest.php
+@@ -0,0 +1,163 @@
++<?php
++
++use App\Models\ProcessInstance;
++use App\Models\ProcessTemplate;
++use App\Models\StepDefinition;
++use App\Models\User;
++use Database\Seeders\RequiredDataSeeder;
++use Illuminate\Database\Eloquent\Collection;
++use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
++use Spatie\Activitylog\Models\Activity;
++
++beforeEach(function () {
++    $this->seed(RequiredDataSeeder::class);
++    $this->withoutMiddleware(PreventRequestForgery::class);
++});
++
++// ─── Task 1: Infrastructure ──────────────────────────────────────────────────
++
++test('process instance has step executions relationship', function () {
++    $designer = User::factory()->create();
++    $designer->assignRole('process_designer');
++
++    $template = ProcessTemplate::create([
++        'name' => 'Test Template',
++        'created_by' => $designer->id,
++    ]);
++
++    $instance = ProcessInstance::create([
++        'template_id' => $template->id,
++        'name' => 'Relationship Test',
++        'template_snapshot_data' => [],
++        'launched_by' => $designer->id,
++        'status' => 'running',
++    ]);
++
++    expect($instance->stepExecutions)->toBeInstanceOf(Collection::class);
++});
++
++// ─── AC1 & AC2: Launch Logic ───────────────────────────────────────────────
++
++test('manager can launch a process instance from a published template', function () {
++    $this->withoutExceptionHandling();
++    $designer = User::factory()->create();
++    $designer->assignRole('process_designer');
++
++    $template = ProcessTemplate::create([
++        'name' => 'Published Template',
++        'created_by' => $designer->id,
++        'is_published' => true,
++        'published_at' => now(),
++    ]);
++
++    StepDefinition::create([
++        'template_id' => $template->id,
++        'name' => 'First Step',
++        'order' => 1,
++        'assignee_type' => 'user',
++        'assignee_id' => $designer->id,
++        'duration_hours' => 24,
++    ]);
++
++    $manager = User::factory()->create();
++    $manager->assignRole('manager');
++
++    $response = $this->actingAs($manager)
++        ->post(route('process-instances.store'), [
++            'template_id' => $template->id,
++            'name' => 'New Instance',
++            'context_data' => ['reason' => 'Onboarding'],
++        ]);
++
++    $instance = ProcessInstance::where('name', 'New Instance')->first();
++    expect($instance)->not->toBeNull();
++    $response->assertRedirect(route('process-instances.show', $instance));
++
++    // AC1: Snapshot
++    expect($instance->template_snapshot_data)->not->toBeEmpty();
++    expect($instance->status->getValue())->toBe('running');
++
++    // AC1 & AC2: First step created and assigned
++    $firstStep = $instance->stepExecutions()->where('order', 1)->first();
++    expect($firstStep)->not->toBeNull();
++    expect($firstStep->status->getValue())->toBe('pending');
++    expect($firstStep->assigned_to)->toBe($designer->id);
++    expect($firstStep->deadline_at)->not->toBeNull();
++});
++
++// ─── AC3: Template List Visibility ──────────────────────────────────────────
++
++test('launch form only shows published templates', function () {
++    $this->withoutExceptionHandling();
++    $designer = User::factory()->create();
++    $designer->assignRole('process_designer');
++
++    ProcessTemplate::create(['name' => 'Published', 'is_published' => true, 'created_by' => $designer->id]);
++    ProcessTemplate::create(['name' => 'Draft', 'is_published' => false, 'created_by' => $designer->id]);
++
++    $manager = User::factory()->create();
++    $manager->assignRole('manager');
++
++    $this->actingAs($manager)
++        ->get(route('process-instances.create'))
++        ->assertOk()
++        ->assertInertia(fn ($page) => $page
++            ->has('templates', 1)
++            ->where('templates.0.name', 'Published')
++        );
++});
++
++// ─── AC4: RBAC Protection ───────────────────────────────────────────────────
++
++test('non-manager/admin cannot launch instance', function () {
++    $designer = User::factory()->create();
++    $designer->assignRole('process_designer');
++
++    $template = ProcessTemplate::create([
++        'name' => 'Published Template',
++        'created_by' => $designer->id,
++        'is_published' => true,
++    ]);
++
++    $executor = User::factory()->create();
++    $executor->assignRole('executor');
++
++    $this->actingAs($executor)
++        ->post(route('process-instances.store'), [
++            'template_id' => $template->id,
++            'name' => 'Unauthorized Instance',
++        ])
++        ->assertForbidden();
++});
++
++// ─── AC5: Activity Log ──────────────────────────────────────────────────────
++
++test('launching an instance records an activity log', function () {
++    $designer = User::factory()->create();
++    $designer->assignRole('process_designer');
++
++    $template = ProcessTemplate::create([
++        'name' => 'Log Template',
++        'created_by' => $designer->id,
++        'is_published' => true,
++    ]);
++
++    $manager = User::factory()->create();
++    $manager->assignRole('manager');
++
++    $this->actingAs($manager)
++        ->post(route('process-instances.store'), [
++            'template_id' => $template->id,
++            'name' => 'Logged Instance',
++        ]);
++
++    $instance = ProcessInstance::where('name', 'Logged Instance')->first();
++
++    $log = Activity::where('subject_id', $instance->id)
++        ->where('subject_type', ProcessInstance::class)
++        ->where('description', 'created')
++        ->first();
++
++    expect($log)->not->toBeNull();
++    expect($log->causer_id)->toBe($manager->id);
++});
+diff --git a/tests/Feature/Process/StepExecutionTest.php b/tests/Feature/Process/StepExecutionTest.php
+new file mode 100644
+index 0000000..1777e62
+--- /dev/null
++++ b/tests/Feature/Process/StepExecutionTest.php
+@@ -0,0 +1,206 @@
++<?php
++
++use App\Models\ProcessInstance;
++use App\Models\ProcessTemplate;
++use App\Models\StepDefinition;
++use App\Models\StepExecution;
++use App\Models\User;
++use App\States\ProcessInstance\Completed as ProcessCompleted;
++use App\States\StepExecution\Completed as StepCompleted;
++use App\States\StepExecution\InProgress;
++use Database\Seeders\RequiredDataSeeder;
++use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
++
++beforeEach(function () {
++    $this->seed(RequiredDataSeeder::class);
++    $this->withoutMiddleware(PreventRequestForgery::class);
++});
++
++// ─── AC1: Acknowledge Logic ──────────────────────────────────────────────────
++
++test('executor can acknowledge a pending step', function () {
++    $this->withoutExceptionHandling();
++    $executor = User::factory()->create();
++    $executor->assignRole('executor');
++
++    $template = ProcessTemplate::create(['name' => 'Test', 'created_by' => 1]);
++    $instance = ProcessInstance::create([
++        'template_id' => $template->id,
++        'name' => 'Instance 1',
++        'template_snapshot_data' => [],
++        'launched_by' => 1,
++    ]);
++
++    $step = StepExecution::create([
++        'instance_id' => $instance->id,
++        'name' => 'Step 1',
++        'order' => 1,
++        'status' => 'pending',
++        'assigned_to' => $executor->id,
++        'step_snapshot_data' => [],
++    ]);
++
++    $this->actingAs($executor)
++        ->post(route('step-executions.acknowledge', $step))
++        ->assertRedirect();
++
++    $step->refresh();
++    expect($step->status)->toBeInstanceOf(InProgress::class);
++    expect($step->started_at)->not->toBeNull();
++});
++
++// ─── AC2 & AC3: Complete Logic ───────────────────────────────────────────────
++
++test('executor can complete an in-progress step and trigger next step', function () {
++    $executor = User::factory()->create();
++    $executor->assignRole('executor');
++
++    $template = ProcessTemplate::create(['name' => 'Test', 'created_by' => 1]);
++
++    // Setup two step definitions for the template
++    StepDefinition::create([
++        'template_id' => $template->id,
++        'name' => 'Def 1',
++        'order' => 1,
++        'assignee_type' => 'user',
++        'assignee_id' => $executor->id,
++        'duration_hours' => 24,
++    ]);
++    StepDefinition::create([
++        'template_id' => $template->id,
++        'name' => 'Def 2',
++        'order' => 2,
++        'assignee_type' => 'user',
++        'assignee_id' => $executor->id,
++        'duration_hours' => 24,
++    ]);
++
++    $instance = ProcessInstance::create([
++        'template_id' => $template->id,
++        'name' => 'Instance 1',
++        'template_snapshot_data' => [],
++        'launched_by' => 1,
++    ]);
++
++    $step1 = StepExecution::create([
++        'instance_id' => $instance->id,
++        'step_definition_id' => $template->stepDefinitions[0]->id,
++        'name' => 'Step 1',
++        'order' => 1,
++        'status' => 'in_progress',
++        'assigned_to' => $executor->id,
++        'step_snapshot_data' => [],
++    ]);
++
++    $this->actingAs($executor)
++        ->post(route('step-executions.complete', $step1), [
++            'completion_notes' => 'Done perfectly',
++        ])
++        ->assertRedirect();
++
++    $step1->refresh();
++    expect($step1->status)->toBeInstanceOf(StepCompleted::class);
++    expect($step1->completed_at)->not->toBeNull();
++    expect($step1->completed_by)->toBe($executor->id);
++    expect($step1->completion_notes)->toBe('Done perfectly');
++
++    // AC3: Check if next step is created
++    $step2 = StepExecution::where('instance_id', $instance->id)->where('order', 2)->first();
++    expect($step2)->not->toBeNull();
++    expect($step2->status->getValue())->toBe('pending');
++});
++
++test('process completes when the last step is finished', function () {
++    $executor = User::factory()->create();
++    $executor->assignRole('executor');
++
++    $template = ProcessTemplate::create(['name' => 'Test', 'created_by' => 1]);
++    StepDefinition::create([
++        'template_id' => $template->id,
++        'name' => 'Last Step',
++        'order' => 1,
++        'assignee_type' => 'user',
++        'assignee_id' => $executor->id,
++        'duration_hours' => 24,
++    ]);
++
++    $instance = ProcessInstance::create([
++        'template_id' => $template->id,
++        'name' => 'Instance 1',
++        'template_snapshot_data' => [],
++        'launched_by' => 1,
++        'status' => 'running',
++    ]);
++
++    $step = StepExecution::create([
++        'instance_id' => $instance->id,
++        'step_definition_id' => $template->stepDefinitions[0]->id,
++        'name' => 'Last Step',
++        'order' => 1,
++        'status' => 'in_progress',
++        'assigned_to' => $executor->id,
++        'step_snapshot_data' => [],
++    ]);
++
++    $this->actingAs($executor)
++        ->post(route('step-executions.complete', $step))
++        ->assertRedirect();
++
++    $instance->refresh();
++    expect($instance->status)->toBeInstanceOf(ProcessCompleted::class);
++    expect($instance->completed_at)->not->toBeNull();
++});
++
++// ─── AC6: Security ──────────────────────────────────────────────────────────
++
++test('non-assigned user cannot acknowledge a step', function () {
++    $executor = User::factory()->create();
++    $otherUser = User::factory()->create();
++
++    $template = ProcessTemplate::create(['name' => 'Test', 'created_by' => 1]);
++    $instance = ProcessInstance::create([
++        'template_id' => $template->id,
++        'name' => 'Instance 1',
++        'template_snapshot_data' => [],
++        'launched_by' => 1,
++    ]);
++
++    $step = StepExecution::create([
++        'instance_id' => $instance->id,
++        'name' => 'Step 1',
++        'order' => 1,
++        'status' => 'pending',
++        'assigned_to' => $executor->id,
++        'step_snapshot_data' => [],
++    ]);
++
++    $this->actingAs($otherUser)
++        ->post(route('step-executions.acknowledge', $step))
++        ->assertForbidden();
++});
++
++test('non-assigned user cannot complete a step', function () {
++    $executor = User::factory()->create();
++    $otherUser = User::factory()->create();
++
++    $template = ProcessTemplate::create(['name' => 'Test', 'created_by' => 1]);
++    $instance = ProcessInstance::create([
++        'template_id' => $template->id,
++        'name' => 'Instance 1',
++        'template_snapshot_data' => [],
++        'launched_by' => 1,
++    ]);
++
++    $step = StepExecution::create([
++        'instance_id' => $instance->id,
++        'name' => 'Step 1',
++        'order' => 1,
++        'status' => 'in_progress',
++        'assigned_to' => $executor->id,
++        'step_snapshot_data' => [],
++    ]);
++
++    $this->actingAs($otherUser)
++        ->post(route('step-executions.complete', $step))
++        ->assertForbidden();
++});
+diff --git a/tests/Feature/Template/ProcessTemplatePublishTest.php b/tests/Feature/Template/ProcessTemplatePublishTest.php
+index 6e32d9d..ca14968 100644
+--- a/tests/Feature/Template/ProcessTemplatePublishTest.php
++++ b/tests/Feature/Template/ProcessTemplatePublishTest.php
+@@ -4,9 +4,11 @@
+ use App\Models\StepDefinition;
+ use App\Models\User;
+ use Database\Seeders\RequiredDataSeeder;
++use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+ 
+ beforeEach(function () {
+     $this->seed(RequiredDataSeeder::class);
++    $this->withoutMiddleware(PreventRequestForgery::class);
+ });
+ 
+ // ─── Task 1: Publish Logic ──────────────────────────────────────────────────

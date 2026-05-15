@@ -5,7 +5,7 @@ export interface StepDefinition {
     description: string | null;
     order: number;
     assignee_type: 'user' | 'role' | 'department' | null;
-    assignee_id: number | null;
+    assignee_id: string | number | null;
     duration_hours: number;
     is_required: boolean;
     created_at: string;
@@ -16,7 +16,7 @@ export interface StepFormData {
     name: string;
     description: string;
     assignee_type: 'user' | 'role' | 'department' | null;
-    assignee_id: number | null;
+    assignee_id: string | number | null;
     duration_hours: number;
     is_required: boolean;
 }

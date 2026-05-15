@@ -124,8 +124,10 @@ test('cannot delete template if instances exist', function () {
 
     \App\Models\ProcessInstance::create([
         'template_id' => $template->id,
+        'name' => 'Instance 1',
         'template_snapshot_data' => ['name' => $template->name],
         'launched_by' => $designer->id,
+        'status' => 'pending',
     ]);
 
     $response = $this->actingAs($designer)
@@ -150,8 +152,10 @@ test('editing template does not affect existing instance snapshots', function ()
 
     $instance = \App\Models\ProcessInstance::create([
         'template_id' => $template->id,
+        'name' => 'Original Template Name',
         'template_snapshot_data' => ['name' => 'Original Template Name'],
         'launched_by' => $designer->id,
+        'status' => 'running',
     ]);
 
     $this->actingAs($designer)
@@ -163,3 +167,4 @@ test('editing template does not affect existing instance snapshots', function ()
     expect($instance->template_snapshot_data['name'])->toBe('Original Template Name');
     expect($template->refresh()->name)->toBe('Updated Template Name');
 });
+

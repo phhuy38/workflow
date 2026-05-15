@@ -87,6 +87,7 @@ test('designer can edit a step', function () {
 // ─── AC4: Delete step + re-index ─────────────────────────────────────────────
 
 test('designer can delete a step and remaining steps are renumbered', function () {
+    $this->withoutExceptionHandling();
     $this->seed(RequiredDataSeeder::class);
     $designer = User::factory()->create();
     $designer->assignRole('process_designer');

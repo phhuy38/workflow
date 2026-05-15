@@ -3,8 +3,10 @@
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ProcessInstanceController;
 use App\Http\Controllers\ProcessTemplateController;
 use App\Http\Controllers\StepDefinitionController;
+use App\Http\Controllers\StepExecutionController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
@@ -28,6 +30,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->only(['store', 'update', 'destroy']);
     Route::patch('step-definitions/{step_definition}/reorder', [StepDefinitionController::class, 'reorder'])
         ->name('step-definitions.reorder');
+
+    // Story 3.1: Process instance execution
+    Route::resource('process-instances', ProcessInstanceController::class)
+        ->only(['index', 'create', 'store', 'show']);
+
+    // Story 3.2: Step execution interactions
+    Route::post('step-executions/{step_execution}/acknowledge', [StepExecutionController::class, 'acknowledge'])
+        ->name('step-executions.acknowledge');
+    Route::post('step-executions/{step_execution}/complete', [StepExecutionController::class, 'complete'])
+        ->name('step-executions.complete');
 });
 
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {

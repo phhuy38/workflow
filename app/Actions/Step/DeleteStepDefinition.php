@@ -13,6 +13,7 @@ class DeleteStepDefinition
             $templateId = $step->template_id;
             $deletedOrder = $step->order;
 
+            $step->update(['order' => -$step->id]);
             $step->delete();
 
             $remaining = DB::table('step_definitions')

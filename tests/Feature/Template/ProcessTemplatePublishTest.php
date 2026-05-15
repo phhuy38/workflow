@@ -4,9 +4,11 @@ use App\Models\ProcessTemplate;
 use App\Models\StepDefinition;
 use App\Models\User;
 use Database\Seeders\RequiredDataSeeder;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 
 beforeEach(function () {
     $this->seed(RequiredDataSeeder::class);
+    $this->withoutMiddleware(PreventRequestForgery::class);
 });
 
 // ─── Task 1: Publish Logic ──────────────────────────────────────────────────

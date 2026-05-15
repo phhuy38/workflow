@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\ProcessInstance;
 use App\Models\User;
 
 class ProcessInstancePolicy
@@ -12,51 +13,39 @@ class ProcessInstancePolicy
     }
 
     /**
-     * Ownership-aware check (ADR-004, P6 patch):
+     * Ownership-aware check (ADR-004):
      * - admin/manager/process_designer: always allowed
      * - executor: only if assigned to a step in this instance
      * - beneficiary: only if instance was created for them
-     *
-     * ProcessInstance model created in Story 3.1; $instance will be typed as ProcessInstance $instance then.
      */
-    public function view(User $user, mixed $instance = null): bool
+    public function view(User $user, ProcessInstance $instance): bool
     {
         return match (true) {
-            // P4: Accept mixed type for now (ProcessInstance model created in Story 3.1)
             $user->hasRole(['admin', 'manager', 'process_designer']) => true,
-            // P6: Executor can view if assigned to a step in this instance
             $user->hasRole('executor') && $this->isExecutorAssignedToInstance($user, $instance) => true,
-            // P6: Beneficiary can view if instance was created for them
             $user->hasRole('beneficiary') && $this->isBeneficiaryForInstance($user, $instance) => true,
             default => false,
         };
     }
 
     /**
-     * Check if executor is assigned to any step in this instance (P6).
-     * Requires: ProcessInstance model with stepExecutions() relation.
+     * Check if executor is assigned to any step in this instance.
      */
-    private function isExecutorAssignedToInstance(User $user, mixed $instance): bool
+    private function isExecutorAssignedToInstance(User $user, ProcessInstance $instance): bool
     {
-        if (! is_object($instance) || ! method_exists($instance, 'stepExecutions')) {
-            return false;
-        }
-
         return $instance->stepExecutions()
             ->where('assigned_to', $user->id)
             ->exists();
     }
 
     /**
-     * Check if beneficiary is the recipient of this instance (P6).
-     * Requires: ProcessInstance model with created_for attribute/relation.
+     * Check if beneficiary is the recipient of this instance.
      */
-    private function isBeneficiaryForInstance(User $user, mixed $instance): bool
+    private function isBeneficiaryForInstance(User $user, ProcessInstance $instance): bool
     {
-        if (! is_object($instance)) {
-            return false;
-        }
-
+        // For now, created_for might be stored in context_data or a dedicated column.
+        // PRD says Manager provides list of beneficiaries.
+        // ADR-017 mentions created_for.
         return $instance->created_for === $user->id;
     }
 
@@ -65,17 +54,27 @@ class ProcessInstancePolicy
         return $user->hasPermissionTo('launch_instances');
     }
 
-    public function cancel(User $user): bool
+    public function update(User $user, ProcessInstance $instance): bool
     {
         return $user->hasRole(['admin', 'manager']);
     }
 
-    public function override(User $user): bool
+    public function delete(User $user, ProcessInstance $instance): bool
+    {
+        return $user->hasRole('admin');
+    }
+
+    public function cancel(User $user, ProcessInstance $instance): bool
     {
         return $user->hasRole(['admin', 'manager']);
     }
 
-    public function ping(User $user): bool
+    public function override(User $user, ProcessInstance $instance): bool
+    {
+        return $user->hasRole(['admin', 'manager']);
+    }
+
+    public function ping(User $user, ProcessInstance $instance): bool
     {
         return $user->hasRole(['admin', 'manager']);
     }

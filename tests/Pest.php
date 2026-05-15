@@ -19,6 +19,8 @@ pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->beforeEach(function () {
         $this->withoutVite();
+        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class);
+        \Illuminate\Support\Facades\Cache::flush();
         // P2: Clear spatie permission cache to prevent race condition between tests
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
     })

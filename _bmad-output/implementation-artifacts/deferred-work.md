@@ -42,3 +42,10 @@
 - Update method consistency: Show.vue uses .patch while some projects prefer .put.
 - Complex JSON casting: Future proofing for template_snapshot_data in ProcessInstance.
 - Test suite performance: Optimization of RequiredDataSeeder usage in ProcessTemplateEditTest.php.
+
+## Deferred from: code review of 3-1-launch-process-instance.md (2026-05-15)
+- Static Versioning — Template version field is never incremented. Pre-existing/Future concern.
+- Template Deletion Protection — Error message claims 'running' processes but blocks if *any* history exists. Pre-existing issue.
+
+## Deferred from: code review of 3-2-executor-acknowledge-complete-step.md (2026-05-15)
+- Role-Coupled Authorization Flaw — ProcessInstancePolicy restricts view based on role, not just assignment. Pre-existing.

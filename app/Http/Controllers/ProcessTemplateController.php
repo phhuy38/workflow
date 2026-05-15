@@ -10,6 +10,7 @@ use App\Http\Resources\ProcessTemplateResource;
 use App\Http\Resources\StepDefinitionResource;
 use App\Models\ProcessTemplate;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -51,7 +52,7 @@ class ProcessTemplateController extends Controller
 
     public function show(ProcessTemplate $processTemplate): Response
     {
-        $this->authorize('view', $processTemplate); // DÒNG ĐẦU TIÊN
+        $this->authorize('view', $processTemplate);
 
         $processTemplate->load('stepDefinitions');
 
@@ -59,7 +60,7 @@ class ProcessTemplateController extends Controller
             'template' => ProcessTemplateResource::make($processTemplate),
             'steps' => StepDefinitionResource::collection($processTemplate->stepDefinitions)->resolve(),
             'can' => [
-                'update' => auth()->user()->can('update', $processTemplate),
+                'update' => auth()->user()->can('update', $processTemplate) && ! $processTemplate->is_published,
                 'delete' => auth()->user()->can('delete', $processTemplate),
                 'publish' => auth()->user()->can('publish', $processTemplate),
             ],
@@ -68,6 +69,10 @@ class ProcessTemplateController extends Controller
 
     public function update(UpdateTemplateRequest $request, ProcessTemplate $processTemplate): RedirectResponse
     {
+        if ($processTemplate->is_published) {
+            return redirect()->back()->with('error', 'Không thể sửa template đã xuất bản.');
+        }
+
         $processTemplate->update($request->validated());
 
         $message = $processTemplate->is_published
@@ -102,7 +107,7 @@ class ProcessTemplateController extends Controller
 
         try {
             $action->handle($processTemplate);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return redirect()
                 ->back()
                 ->with('error', $e->errors()['error'][0] ?? $e->getMessage());

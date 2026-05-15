@@ -17,6 +17,7 @@ return new class extends Migration
                 ->constrained('process_templates')
                 ->restrictOnDelete(); // AC6 requirement
             $blueprint->jsonb('template_snapshot_data'); // ADR-006: Immutable snapshot
+
             $blueprint->string('status')->default('running'); // running, completed, cancelled
             $blueprint->timestamp('launched_at')->useCurrent();
             $blueprint->timestamp('completed_at')->nullable();

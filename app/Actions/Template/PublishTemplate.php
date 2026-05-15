@@ -24,6 +24,9 @@ class PublishTemplate
             if (empty($step->assignee_type)) {
                 $errors[] = "Bước {$stepNum}: chưa có loại người phụ trách.";
             }
+            if ($step->assignee_type === 'user' && ! $step->assignee_id) {
+                $errors[] = "Bước {$stepNum}: chưa chọn người phụ trách cụ thể.";
+            }
             if ($step->duration_hours <= 0) {
                 $errors[] = "Bước {$stepNum}: thời hạn phải lớn hơn 0.";
             }

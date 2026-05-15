@@ -20,6 +20,11 @@ class StepDefinitionController extends Controller
     public function store(StoreStepRequest $request, CreateStepDefinition $action): RedirectResponse
     {
         $template = ProcessTemplate::findOrFail($request->validated()['template_id']);
+
+        if ($template->is_published) {
+            return redirect()->back()->with('error', 'Không thể thêm bước vào template đã xuất bản.');
+        }
+
         $action->handle($template, $request->validated());
 
         return redirect()
@@ -29,6 +34,10 @@ class StepDefinitionController extends Controller
 
     public function update(UpdateStepRequest $request, StepDefinition $stepDefinition, UpdateStepDefinition $action): RedirectResponse
     {
+        if ($stepDefinition->processTemplate->is_published) {
+            return redirect()->back()->with('error', 'Không thể sửa bước của template đã xuất bản.');
+        }
+
         $action->handle($stepDefinition, $request->validated());
 
         return redirect()
@@ -39,6 +48,11 @@ class StepDefinitionController extends Controller
     public function destroy(StepDefinition $stepDefinition, DeleteStepDefinition $action): RedirectResponse
     {
         $this->authorize('update', $stepDefinition->processTemplate);
+
+        if ($stepDefinition->processTemplate->is_published) {
+            return redirect()->back()->with('error', 'Không thể xóa bước của template đã xuất bản.');
+        }
+
         $templateId = $stepDefinition->template_id;
         $action->handle($stepDefinition);
 
@@ -49,6 +63,12 @@ class StepDefinitionController extends Controller
 
     public function reorder(ReorderStepRequest $request, StepDefinition $stepDefinition, ReorderStepDefinition $action): JsonResponse|RedirectResponse
     {
+        if ($stepDefinition->processTemplate->is_published) {
+            return $request->wantsJson()
+                ? response()->json(['error' => 'Không thể đổi thứ tự bước của template đã xuất bản.'], 422)
+                : redirect()->back()->with('error', 'Không thể đổi thứ tự bước của template đã xuất bản.');
+        }
+
         $steps = $action->handle($stepDefinition, $request->validated()['new_order']);
 
         if ($request->wantsJson()) {

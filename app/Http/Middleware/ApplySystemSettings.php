@@ -20,17 +20,17 @@ class ApplySystemSettings
 
         // Cache all settings for 1 hour to reduce DB load. Invalidated when settings updated.
         $settings = Cache::remember('system_settings', 3600, function () {
-            return SystemSetting::all()->pluck('value', 'key');
+            return SystemSetting::all()->pluck('value', 'key')->toArray();
         });
 
-        if ($settings->get('smtp_host')) {
+        if (!empty($settings['smtp_host'])) {
             Config::set('mail.default', 'smtp');
-            Config::set('mail.mailers.smtp.host', $settings->get('smtp_host'));
-            Config::set('mail.mailers.smtp.port', (int) $settings->get('smtp_port', 587));
-            Config::set('mail.mailers.smtp.username', $settings->get('smtp_username'));
+            Config::set('mail.mailers.smtp.host', $settings['smtp_host']);
+            Config::set('mail.mailers.smtp.port', (int) ($settings['smtp_port'] ?? 587));
+            Config::set('mail.mailers.smtp.username', $settings['smtp_username'] ?? '');
 
             // Decrypt password if encrypted, otherwise use as-is (backward compat)
-            $password = $settings->get('smtp_password', '');
+            $password = $settings['smtp_password'] ?? '';
             if ($password && str_starts_with($password, 'eyJpdiI6')) {
                 try {
                     $password = Crypt::decryptString($password);
@@ -39,17 +39,17 @@ class ApplySystemSettings
                 }
             }
             Config::set('mail.mailers.smtp.password', $password);
-            Config::set('mail.mailers.smtp.encryption', $settings->get('smtp_encryption', 'tls'));
+            Config::set('mail.mailers.smtp.encryption', $settings['smtp_encryption'] ?? 'tls');
         }
 
-        if ($settings->get('smtp_from_address')) {
-            Config::set('mail.from.address', $settings->get('smtp_from_address'));
+        if (!empty($settings['smtp_from_address'])) {
+            Config::set('mail.from.address', $settings['smtp_from_address']);
             // Use configured from_name or fall back to app name
-            Config::set('mail.from.name', $settings->get('smtp_from_name') ?? config('app.name'));
+            Config::set('mail.from.name', $settings['smtp_from_name'] ?? config('app.name'));
         }
 
         // Apply session lifetime — guard against zero or non-numeric values
-        $lifetime = $settings->get('session_lifetime');
+        $lifetime = $settings['session_lifetime'] ?? null;
         if ($lifetime && is_numeric($lifetime) && (int) $lifetime > 0) {
             Config::set('session.lifetime', (int) $lifetime);
         }
