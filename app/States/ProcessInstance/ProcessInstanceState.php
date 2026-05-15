@@ -16,6 +16,7 @@ abstract class ProcessInstanceState extends State
             ->allowTransition(Running::class, Cancelled::class)
             ->allowTransition(Running::class, Paused::class)
             ->allowTransition(Paused::class, Running::class)
+            ->allowTransition(Paused::class, Cancelled::class)
             ->allowTransition(Pending::class, Cancelled::class);
     }
 

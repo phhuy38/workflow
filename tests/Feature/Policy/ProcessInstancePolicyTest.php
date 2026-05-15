@@ -21,19 +21,26 @@ test('admin can do everything with instances', function () {
     expect($policy->ping($user, $instance))->toBeTrue();
 });
 
-test('manager can launch, cancel, override, and ping instances', function () {
+test('manager can launch and ping instances, but cancel/override only if they launched it', function () {
     $this->seed(RequiredDataSeeder::class);
     $user = User::factory()->create();
     $user->assignRole('manager');
-    $instance = new \App\Models\ProcessInstance();
+    $instanceOwned = new \App\Models\ProcessInstance(['launched_by' => $user->id]);
+    $instanceNotOwned = new \App\Models\ProcessInstance(['launched_by' => 999]);
 
     $policy = new ProcessInstancePolicy;
 
     expect($policy->viewAny($user))->toBeTrue();
     expect($policy->create($user))->toBeTrue();
-    expect($policy->cancel($user, $instance))->toBeTrue();
-    expect($policy->override($user, $instance))->toBeTrue();
-    expect($policy->ping($user, $instance))->toBeTrue();
+    expect($policy->ping($user, $instanceOwned))->toBeTrue();
+    
+    // Owned
+    expect($policy->cancel($user, $instanceOwned))->toBeTrue();
+    expect($policy->override($user, $instanceOwned))->toBeTrue();
+
+    // Not owned
+    expect($policy->cancel($user, $instanceNotOwned))->toBeFalse();
+    expect($policy->override($user, $instanceNotOwned))->toBeFalse();
 });
 
 test('process_designer can view instances but not launch or override', function () {

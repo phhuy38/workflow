@@ -65,7 +65,7 @@ development_status:
   3-1-launch-process-instance: done
   3-2-executor-acknowledge-complete-step: review
   3-3-automatic-step-progression-process-completion: review
-  3-4-manager-override-step-cancel-instance: backlog
+  3-4-manager-override-step-cancel-instance: done
   3-5-activity-log-full-audit-trail: backlog
   epic-3-retrospective: optional
 

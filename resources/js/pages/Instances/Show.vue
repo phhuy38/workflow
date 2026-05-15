@@ -185,7 +185,7 @@ function getFlash(key: string): string | null {
                             </TableCell>
                             <TableCell class="text-sm min-w-[200px]">
                                 <!-- Interaction for Executor -->
-                                <div v-if="authUser && step.assigned_to === authUser.id && !step.completed_at">
+                                <div v-if="authUser && step.assigned_to === authUser.id && !step.completed_at && step.status !== 'skipped' && step.status !== 'cancelled'">
                                     <div v-if="step.status === 'pending'">
                                         <Button size="sm" @click="acknowledge(step.id)">Xác nhận nhận việc</Button>
                                     </div>
@@ -204,7 +204,23 @@ function getFlash(key: string): string | null {
                                     </div>
                                 </div>
 
-                                <div v-else-if="step.completed_at" class="flex flex-col gap-1">
+                                <!-- Interaction for Manager (Override) -->
+                                <div v-if="can.override && ['pending', 'in_progress'].includes(step.status)" class="mt-2">
+                                    <div v-if="showOverrideForm !== step.id">
+                                        <Button size="xs" variant="outline" class="text-warning border-warning" @click="showOverrideForm = step.id">Override (Cưỡng chế)</Button>
+                                    </div>
+                                    <div v-else class="flex flex-col gap-2 p-2 border border-warning/50 rounded bg-warning/10">
+                                        <Label class="text-xs text-warning">Lý do override:</Label>
+                                        <Textarea v-model="overrideForm.reason" rows="2" class="text-xs" />
+                                        <p v-if="overrideForm.errors.reason" class="text-destructive text-xs">{{ overrideForm.errors.reason }}</p>
+                                        <div class="flex gap-2">
+                                            <Button size="xs" variant="ghost" @click="showOverrideForm = null">Hủy</Button>
+                                            <Button size="xs" variant="warning" :disabled="overrideForm.processing" @click="submitOverride(step.id)">Xác nhận Override</Button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-else-if="step.completed_at || step.status === 'skipped' || step.status === 'cancelled'" class="flex flex-col gap-1 mt-1">
                                     <div class="flex flex-col">
                                         <span>{{ formatDate(step.completed_at) }}</span>
                                         <span class="text-xs text-muted-foreground">Bởi: {{ step.finisher_name }}</span>

@@ -49,3 +49,6 @@
 
 ## Deferred from: code review of 3-2-executor-acknowledge-complete-step.md (2026-05-15)
 - Role-Coupled Authorization Flaw — ProcessInstancePolicy restricts view based on role, not just assignment. Pre-existing.
+
+## Deferred from: code review of 3-4-manager-override-step-cancel-instance.md (2026-05-15)
+- Double Update/Missing Transaction Lock in Override — `OverrideStep` mutates state then transitions without explicit locking, though `transitionTo` handles the save. Potential future refactor to explicit `save()` if Spatie library changes.

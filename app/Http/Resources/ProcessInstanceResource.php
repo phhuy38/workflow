@@ -39,7 +39,9 @@ class ProcessInstanceResource extends JsonResource
             return 0;
         }
 
-        $completed = $this->stepExecutions->where('status', Completed::class)->count();
+        $completed = $this->stepExecutions
+            ->filter(fn ($step) => in_array($step->status->getValue(), ['completed', 'skipped']))
+            ->count();
 
         return (int) (($completed / $total) * 100);
     }

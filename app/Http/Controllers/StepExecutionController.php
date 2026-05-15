@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Process\AcknowledgeStep;
 use App\Actions\Process\CompleteStep;
+use App\Actions\Process\OverrideStep;
 use App\Models\StepExecution;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,5 +31,18 @@ class StepExecutionController extends Controller
         $action->handle($stepExecution, auth()->user(), $validated);
 
         return redirect()->back()->with('success', 'Đã hoàn thành bước.');
+    }
+
+    public function override(Request $request, StepExecution $stepExecution, OverrideStep $action): RedirectResponse
+    {
+        $this->authorize('override', $stepExecution->instance);
+
+        $validated = $request->validate([
+            'reason' => 'required|string|min:3|max:1000',
+        ]);
+
+        $action->handle($stepExecution, auth()->user(), $validated['reason']);
+
+        return redirect()->back()->with('success', 'Đã ghi đè bước.');
     }
 }

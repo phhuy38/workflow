@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Process\CancelInstance;
 use App\Actions\Process\LaunchProcessInstance;
 use App\Http\Requests\Process\LaunchProcessRequest;
 use App\Http\Resources\ProcessInstanceResource;
@@ -10,6 +11,7 @@ use App\Http\Resources\StepExecutionResource;
 use App\Models\ProcessInstance;
 use App\Models\ProcessTemplate;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -66,6 +68,23 @@ class ProcessInstanceController extends Controller
         return Inertia::render('Instances/Show', [
             'instance' => ProcessInstanceResource::make($processInstance),
             'steps' => StepExecutionResource::collection($processInstance->stepExecutions)->resolve(),
+            'can' => [
+                'cancel' => auth()->user()->can('cancel', $processInstance),
+                'override' => auth()->user()->can('override', $processInstance),
+            ],
         ]);
+    }
+
+    public function cancel(Request $request, ProcessInstance $processInstance, CancelInstance $action): RedirectResponse
+    {
+        $this->authorize('cancel', $processInstance);
+
+        $validated = $request->validate([
+            'reason' => 'required|string|min:3|max:1000',
+        ]);
+
+        $action->handle($processInstance, auth()->user(), $validated['reason']);
+
+        return redirect()->back()->with('success', 'Quy trình đã được hủy.');
     }
 }

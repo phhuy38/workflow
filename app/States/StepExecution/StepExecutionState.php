@@ -17,7 +17,9 @@ abstract class StepExecutionState extends State
             ->allowTransition(Blocked::class, InProgress::class)
             ->allowTransition(InProgress::class, Escalated::class)
             ->allowTransition(Pending::class, Skipped::class) // For manager override
-            ->allowTransition(InProgress::class, Skipped::class);
+            ->allowTransition(InProgress::class, Skipped::class)
+            ->allowTransition(Blocked::class, Skipped::class)
+            ->allowTransition(Escalated::class, Skipped::class);
     }
 
     // abstract public function getValue(): string;

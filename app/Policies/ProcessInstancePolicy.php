@@ -66,12 +66,12 @@ class ProcessInstancePolicy
 
     public function cancel(User $user, ProcessInstance $instance): bool
     {
-        return $user->hasRole(['admin', 'manager']);
+        return $user->hasRole('admin') || ($user->hasRole('manager') && $user->id === $instance->launched_by);
     }
 
     public function override(User $user, ProcessInstance $instance): bool
     {
-        return $user->hasRole(['admin', 'manager']);
+        return $user->hasRole('admin') || ($user->hasRole('manager') && $user->id === $instance->launched_by);
     }
 
     public function ping(User $user, ProcessInstance $instance): bool

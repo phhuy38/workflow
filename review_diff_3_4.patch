@@ -1,0 +1,539 @@
+diff --git a/_bmad-output/implementation-artifacts/3-4-manager-override-step-cancel-instance.md b/_bmad-output/implementation-artifacts/3-4-manager-override-step-cancel-instance.md
+new file mode 100644
+index 0000000..9a203f8
+--- /dev/null
++++ b/_bmad-output/implementation-artifacts/3-4-manager-override-step-cancel-instance.md
+@@ -0,0 +1,70 @@
++# Story 3.4: Manager override step & cancel instance (FR13, FR14, FR15)
++
++Status: ready-for-dev
++
++## Story
++
++As a Manager,
++I want to be able to override (force complete) a stalled step or cancel an entire instance,
++so that I can handle exceptions, stalled processes, or errors without waiting for the assigned Executor.
++
++## Acceptance Criteria
++
++1. **Given** một bước đang ở trạng thái 'pending' hoặc 'in_progress', **When** Manager của instance đó (người đã launch) nhấn "Override", nhập lý do bắt buộc và xác nhận, **Then** trạng thái của `step_execution` chuyển sang 'skipped' (hoặc 'completed' với cờ override), **And** ghi chú hoàn thành lưu lý do override, **And** `completed_by` lưu ID của Manager, **And** bước tiếp theo được tự động kích hoạt (FR13, FR12 tái sử dụng từ 3.3).
++2. **Given** một instance đang chạy ('running' hoặc 'paused'), **When** Manager nhấn "Hủy quy trình" (Cancel), nhập lý do bắt buộc và xác nhận, **Then** trạng thái của `ProcessInstance` chuyển sang 'cancelled', **And** tất cả các bước đang 'pending'/'in_progress' bị hủy bỏ, **And** instance không còn tiếp tục. (FR14)
++3. **Given** hành động override bước hoặc cancel quy trình, **When** hệ thống lưu dữ liệu, **Then** Activity Log ghi nhận đầy đủ hành động, người thực hiện (Manager) và lý do (FR15, ADR-005).
++4. **Given** UI chi tiết Instance, **When** Manager xem, **Then** các nút "Override" (ở mỗi bước chưa hoàn thành) và "Hủy quy trình" (ở mức instance) có thể truy cập trực tiếp (Inline action pattern UX-DR3).
++5. **Given** một người dùng không phải là Manager đã khởi tạo instance (hoặc không phải Admin), **When** họ cố gắng override hoặc cancel, **Then** hệ thống trả về 403 Forbidden.
++
++## Tasks / Subtasks
++
++- [x] **Domain Logic: Actions (ADR-017)**
++  - [x] Tạo Action `App\Actions\Process\OverrideStep`. Logic: validate quyền -> cập nhật bước (chuyển state sang `Skipped` hoặc `Completed` kèm note) -> ghi Activity Log -> gọi `AdvanceProcessInstance` để đi tiếp.
++  - [x] Tạo Action `App\Actions\Process\CancelInstance`. Logic: validate quyền -> chuyển state của Instance sang `Cancelled` -> chuyển state của các bước đang pending/in_progress sang `Cancelled` hoặc `Skipped` -> ghi Activity Log.
++- [x] **State Machine Constraints (ADR-016)**
++  - [x] Đảm bảo `ProcessInstanceState` hỗ trợ chuyển từ `Running` -> `Cancelled`.
++  - [x] Đảm bảo `StepExecutionState` hỗ trợ chuyển từ `Pending`/`InProgress` -> `Skipped` (hoặc state tương ứng cho override).
++- [x] **Web Layer: Controller & Routes (ADR-031)**
++  - [x] Thêm các endpoint (POST) trong `ProcessInstanceController` (cho cancel) và `StepExecutionController` (cho override). Ví dụ: `/process-instances/{instance}/cancel` và `/step-executions/{step}/override`.
++  - [x] Cập nhật `ProcessInstancePolicy` và `StepExecutionPolicy` để cấp quyền cho Manager (và Admin).
++  - [x] Validate request data: bắt buộc có trường `reason` (string, min length).
++- [x] **Frontend: UI Updates (Vue/Inertia)**
++  - [x] Thêm form/modal/dialog trong `resources/js/pages/Instances/Show.vue` cho tính năng Override (trên từng dòng của Table các bước).
++  - [x] Thêm form/modal/dialog trong `Show.vue` (hoặc header) cho tính năng Cancel Instance.
++  - [x] Implement UI UX-DR3: Cung cấp nút ngay trên màn hình chi tiết, có visual feedback rõ ràng khi thao tác thành công.
++- [x] **Testing**
++  - [x] Viết Feature tests cho tính năng Override: Thành công tiến bước tiếp theo, bắt buộc có lý do, kiểm tra phân quyền (chỉ Manager sở hữu/Admin).
++  - [x] Viết Feature tests cho tính năng Cancel: Thành công hủy quy trình, các bước chưa hoàn thành cũng bị dừng, bắt buộc có lý do, kiểm tra phân quyền.
++
++## Dev Notes
++
++### Architecture Compliance
++- **ADR-016 (States):** Quản lý nghiêm ngặt các transition hợp lệ. Tránh để step có trạng thái in_progress khi instance đã cancelled.
++- **ADR-005 (Audit Log):** Đặc biệt quan trọng với các hành động mang tính chất can thiệp như override/cancel. Phải truyền lý do vào log properties nếu có thể, hoặc ghép vào description.
++- **Reusability:** Sử dụng lại `AdvanceProcessInstance` action từ story 3.3.
++
++### Project Structure Notes
++- Actions: `app/Actions/Process/`
++
++### References
++- [PRD: FR13, FR14, FR15, UX-DR3](_bmad-output/planning-artifacts/prd.md)
++- [Epics: Story 3.4](_bmad-output/planning-artifacts/epics.md)
++
++## Dev Agent Record
++
++### Agent Model Used
++Gemini 2.0 Flash
++
++### Debug Log References
++N/A
++
++### Completion Notes List
++N/A
++
++### File List
++- app/Actions/Process/OverrideStep.php (new)
++- app/Actions/Process/CancelInstance.php (new)
++- app/Http/Controllers/ProcessInstanceController.php (update)
++- app/Http/Controllers/StepExecutionController.php (update)
++- resources/js/pages/Instances/Show.vue (update)
++- tests/Feature/Process/OverrideAndCancelTest.php (new)
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index b0b11ba..348f064 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -65,7 +65,7 @@ development_status:
+   3-1-launch-process-instance: done
+   3-2-executor-acknowledge-complete-step: review
+   3-3-automatic-step-progression-process-completion: review
+-  3-4-manager-override-step-cancel-instance: backlog
++  3-4-manager-override-step-cancel-instance: review
+   3-5-activity-log-full-audit-trail: backlog
+   epic-3-retrospective: optional
+ 
+diff --git a/app/Actions/Process/CancelInstance.php b/app/Actions/Process/CancelInstance.php
+new file mode 100644
+index 0000000..efa6e14
+--- /dev/null
++++ b/app/Actions/Process/CancelInstance.php
+@@ -0,0 +1,47 @@
++<?php
++
++namespace App\Actions\Process;
++
++use App\Models\ProcessInstance;
++use App\Models\User;
++use App\States\ProcessInstance\Cancelled;
++use App\States\StepExecution\Skipped;
++use Illuminate\Support\Facades\DB;
++
++class CancelInstance
++{
++    public function handle(ProcessInstance $instance, User $user, string $reason): void
++    {
++        DB::transaction(function () use ($instance, $user, $reason) {
++            $instance->completed_at = now(); // Mark as ended
++
++            // ADR-016: State transition
++            $instance->status->transitionTo(Cancelled::class);
++
++            // ADR-005: Audit Log
++            activity()
++                ->performedOn($instance)
++                ->causedBy($user)
++                ->withProperties(['reason' => $reason])
++                ->log('cancelled');
++
++            // Cancel all pending/in_progress steps
++            $activeSteps = $instance->stepExecutions()
++                ->whereIn('status', ['pending', 'in_progress'])
++                ->get();
++
++            foreach ($activeSteps as $step) {
++                $step->completed_at = now();
++                $step->completed_by = $user->id;
++                $step->completion_notes = 'CANCELLED WITH INSTANCE: '.$reason;
++                $step->status->transitionTo(Skipped::class);
++
++                activity()
++                    ->performedOn($step)
++                    ->causedBy($user)
++                    ->withProperties(['reason' => $reason])
++                    ->log('cancelled');
++            }
++        });
++    }
++}
+diff --git a/app/Actions/Process/OverrideStep.php b/app/Actions/Process/OverrideStep.php
+new file mode 100644
+index 0000000..e77f1c9
+--- /dev/null
++++ b/app/Actions/Process/OverrideStep.php
+@@ -0,0 +1,35 @@
++<?php
++
++namespace App\Actions\Process;
++
++use App\Models\StepExecution;
++use App\Models\User;
++use App\States\StepExecution\Skipped;
++use Illuminate\Support\Facades\DB;
++
++class OverrideStep
++{
++    public function __construct(private AdvanceProcessInstance $advanceProcess) {}
++
++    public function handle(StepExecution $step, User $user, string $reason): void
++    {
++        DB::transaction(function () use ($step, $user, $reason) {
++            $step->completed_at = now();
++            $step->completed_by = $user->id;
++            $step->completion_notes = 'OVERRIDDEN: '.$reason;
++
++            // ADR-016: State transition
++            $step->status->transitionTo(Skipped::class);
++
++            // ADR-005: Audit Log
++            activity()
++                ->performedOn($step)
++                ->causedBy($user)
++                ->withProperties(['reason' => $reason])
++                ->log('overridden');
++
++            // Move to the next step
++            $this->advanceProcess->handle($step->instance, $step, $user);
++        });
++    }
++}
+diff --git a/app/Http/Controllers/ProcessInstanceController.php b/app/Http/Controllers/ProcessInstanceController.php
+index de9b298..b1c13e7 100644
+--- a/app/Http/Controllers/ProcessInstanceController.php
++++ b/app/Http/Controllers/ProcessInstanceController.php
+@@ -2,6 +2,7 @@
+ 
+ namespace App\Http\Controllers;
+ 
++use App\Actions\Process\CancelInstance;
+ use App\Actions\Process\LaunchProcessInstance;
+ use App\Http\Requests\Process\LaunchProcessRequest;
+ use App\Http\Resources\ProcessInstanceResource;
+@@ -10,6 +11,7 @@
+ use App\Models\ProcessInstance;
+ use App\Models\ProcessTemplate;
+ use Illuminate\Http\RedirectResponse;
++use Illuminate\Http\Request;
+ use Inertia\Inertia;
+ use Inertia\Response;
+ 
+@@ -66,6 +68,23 @@ public function show(ProcessInstance $processInstance): Response
+         return Inertia::render('Instances/Show', [
+             'instance' => ProcessInstanceResource::make($processInstance),
+             'steps' => StepExecutionResource::collection($processInstance->stepExecutions)->resolve(),
++            'can' => [
++                'cancel' => auth()->user()->can('cancel', $processInstance),
++                'override' => auth()->user()->can('override', $processInstance),
++            ],
+         ]);
+     }
++
++    public function cancel(Request $request, ProcessInstance $processInstance, CancelInstance $action): RedirectResponse
++    {
++        $this->authorize('cancel', $processInstance);
++
++        $validated = $request->validate([
++            'reason' => 'required|string|min:3|max:1000',
++        ]);
++
++        $action->handle($processInstance, auth()->user(), $validated['reason']);
++
++        return redirect()->back()->with('success', 'Quy trình đã được hủy.');
++    }
+ }
+diff --git a/app/Http/Controllers/StepExecutionController.php b/app/Http/Controllers/StepExecutionController.php
+index cdc3dbc..6bd01f9 100644
+--- a/app/Http/Controllers/StepExecutionController.php
++++ b/app/Http/Controllers/StepExecutionController.php
+@@ -4,6 +4,7 @@
+ 
+ use App\Actions\Process\AcknowledgeStep;
+ use App\Actions\Process\CompleteStep;
++use App\Actions\Process\OverrideStep;
+ use App\Models\StepExecution;
+ use Illuminate\Http\RedirectResponse;
+ use Illuminate\Http\Request;
+@@ -31,4 +32,17 @@ public function complete(Request $request, StepExecution $stepExecution, Complet
+ 
+         return redirect()->back()->with('success', 'Đã hoàn thành bước.');
+     }
++
++    public function override(Request $request, StepExecution $stepExecution, OverrideStep $action): RedirectResponse
++    {
++        $this->authorize('override', $stepExecution->instance);
++
++        $validated = $request->validate([
++            'reason' => 'required|string|min:3|max:1000',
++        ]);
++
++        $action->handle($stepExecution, auth()->user(), $validated['reason']);
++
++        return redirect()->back()->with('success', 'Đã ghi đè bước.');
++    }
+ }
+diff --git a/resources/js/pages/Instances/Show.vue b/resources/js/pages/Instances/Show.vue
+index c9b3ed6..aa5e5f4 100644
+--- a/resources/js/pages/Instances/Show.vue
++++ b/resources/js/pages/Instances/Show.vue
+@@ -185,7 +185,7 @@ function getFlash(key: string): string | null {
+                             </TableCell>
+                             <TableCell class="text-sm min-w-[200px]">
+                                 <!-- Interaction for Executor -->
+-                                <div v-if="authUser && step.assigned_to === authUser.id && !step.completed_at">
++                                <div v-if="authUser && step.assigned_to === authUser.id && !step.completed_at && step.status !== 'skipped' && step.status !== 'cancelled'">
+                                     <div v-if="step.status === 'pending'">
+                                         <Button size="sm" @click="acknowledge(step.id)">Xác nhận nhận việc</Button>
+                                     </div>
+@@ -204,7 +204,23 @@ function getFlash(key: string): string | null {
+                                     </div>
+                                 </div>
+ 
+-                                <div v-else-if="step.completed_at" class="flex flex-col gap-1">
++                                <!-- Interaction for Manager (Override) -->
++                                <div v-if="can.override && ['pending', 'in_progress'].includes(step.status)" class="mt-2">
++                                    <div v-if="showOverrideForm !== step.id">
++                                        <Button size="xs" variant="outline" class="text-warning border-warning" @click="showOverrideForm = step.id">Override (Cưỡng chế)</Button>
++                                    </div>
++                                    <div v-else class="flex flex-col gap-2 p-2 border border-warning/50 rounded bg-warning/10">
++                                        <Label class="text-xs text-warning">Lý do override:</Label>
++                                        <Textarea v-model="overrideForm.reason" rows="2" class="text-xs" />
++                                        <p v-if="overrideForm.errors.reason" class="text-destructive text-xs">{{ overrideForm.errors.reason }}</p>
++                                        <div class="flex gap-2">
++                                            <Button size="xs" variant="ghost" @click="showOverrideForm = null">Hủy</Button>
++                                            <Button size="xs" variant="warning" :disabled="overrideForm.processing" @click="submitOverride(step.id)">Xác nhận Override</Button>
++                                        </div>
++                                    </div>
++                                </div>
++
++                                <div v-else-if="step.completed_at || step.status === 'skipped' || step.status === 'cancelled'" class="flex flex-col gap-1 mt-1">
+                                     <div class="flex flex-col">
+                                         <span>{{ formatDate(step.completed_at) }}</span>
+                                         <span class="text-xs text-muted-foreground">Bởi: {{ step.finisher_name }}</span>
+diff --git a/routes/web.php b/routes/web.php
+index 57b5538..aa15893 100644
+--- a/routes/web.php
++++ b/routes/web.php
+@@ -34,12 +34,15 @@
+     // Story 3.1: Process instance execution
+     Route::resource('process-instances', ProcessInstanceController::class)
+         ->only(['index', 'create', 'store', 'show']);
+-
+-    // Story 3.2: Step execution interactions
++    Route::post('process-instances/{process_instance}/cancel', [ProcessInstanceController::class, 'cancel'])
++        ->name('process-instances.cancel');
++    // Story 3.2 & 3.4: Step execution interactions
+     Route::post('step-executions/{step_execution}/acknowledge', [StepExecutionController::class, 'acknowledge'])
+         ->name('step-executions.acknowledge');
+     Route::post('step-executions/{step_execution}/complete', [StepExecutionController::class, 'complete'])
+         ->name('step-executions.complete');
++    Route::post('step-executions/{step_execution}/override', [StepExecutionController::class, 'override'])
++        ->name('step-executions.override');
+ });
+ 
+ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+diff --git a/tests/Feature/Process/OverrideAndCancelTest.php b/tests/Feature/Process/OverrideAndCancelTest.php
+new file mode 100644
+index 0000000..9f8cbef
+--- /dev/null
++++ b/tests/Feature/Process/OverrideAndCancelTest.php
+@@ -0,0 +1,216 @@
++<?php
++
++use App\Models\ProcessInstance;
++use App\Models\ProcessTemplate;
++use App\Models\StepDefinition;
++use App\Models\StepExecution;
++use App\Models\User;
++use App\States\ProcessInstance\Cancelled as ProcessCancelled;
++use App\States\StepExecution\Skipped as StepSkipped;
++use Database\Seeders\RequiredDataSeeder;
++use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
++use Spatie\Activitylog\Models\Activity;
++
++beforeEach(function () {
++    $this->seed(RequiredDataSeeder::class);
++    $this->withoutMiddleware(PreventRequestForgery::class);
++});
++
++// ─── AC1: Override Step ───────────────────────────────────────────────────────
++
++test('manager can override a step and trigger the next step', function () {
++    $manager = User::factory()->create();
++    $manager->assignRole('manager');
++
++    $executor = User::factory()->create();
++    $executor->assignRole('executor');
++
++    $template = ProcessTemplate::create(['name' => 'Override Test', 'created_by' => 1]);
++
++    StepDefinition::create([
++        'template_id' => $template->id,
++        'name' => 'Step 1',
++        'order' => 1,
++        'assignee_type' => 'user',
++        'assignee_id' => $executor->id,
++        'duration_hours' => 24,
++    ]);
++    StepDefinition::create([
++        'template_id' => $template->id,
++        'name' => 'Step 2',
++        'order' => 2,
++        'assignee_type' => 'user',
++        'assignee_id' => $executor->id,
++        'duration_hours' => 24,
++    ]);
++
++    $instance = ProcessInstance::create([
++        'template_id' => $template->id,
++        'name' => 'Instance 1',
++        'template_snapshot_data' => [
++            'steps' => $template->stepDefinitions->toArray(),
++        ],
++        'launched_by' => $manager->id,
++        'status' => 'running',
++    ]);
++
++    $step1 = StepExecution::create([
++        'instance_id' => $instance->id,
++        'step_definition_id' => $template->stepDefinitions[0]->id,
++        'name' => 'Step 1',
++        'order' => 1,
++        'status' => 'pending',
++        'assigned_to' => $executor->id,
++        'step_snapshot_data' => [],
++    ]);
++
++    $response = $this->actingAs($manager)
++        ->post(route('step-executions.override', $step1), [
++            'reason' => 'Executor is on leave',
++        ]);
++
++    $response->assertRedirect()->assertSessionHas('success');
++
++    $step1->refresh();
++    expect($step1->status)->toBeInstanceOf(StepSkipped::class);
++    expect($step1->completed_by)->toBe($manager->id);
++    expect($step1->completion_notes)->toBe('OVERRIDDEN: Executor is on leave');
++
++    // AC3: Activity log check
++    $log = Activity::where('subject_id', $step1->id)
++        ->where('subject_type', StepExecution::class)
++        ->where('description', 'overridden')
++        ->first();
++
++    expect($log)->not->toBeNull();
++    expect($log->causer_id)->toBe($manager->id);
++    expect($log->properties['reason'])->toBe('Executor is on leave');
++
++    // Check if step 2 is created
++    $step2 = StepExecution::where('instance_id', $instance->id)->where('order', 2)->first();
++    expect($step2)->not->toBeNull();
++    expect($step2->status->getValue())->toBe('pending');
++});
++
++// ─── AC2: Cancel Instance ─────────────────────────────────────────────────────
++
++test('manager can cancel an instance and all active steps are cancelled', function () {
++    $manager = User::factory()->create();
++    $manager->assignRole('manager');
++
++    $executor = User::factory()->create();
++    $executor->assignRole('executor');
++
++    $template = ProcessTemplate::create(['name' => 'Cancel Test', 'created_by' => 1]);
++
++    $instance = ProcessInstance::create([
++        'template_id' => $template->id,
++        'name' => 'Instance 1',
++        'template_snapshot_data' => [],
++        'launched_by' => $manager->id,
++        'status' => 'running',
++    ]);
++
++    $step1 = StepExecution::create([
++        'instance_id' => $instance->id,
++        'name' => 'Step 1',
++        'order' => 1,
++        'status' => 'in_progress',
++        'assigned_to' => $executor->id,
++        'step_snapshot_data' => [],
++    ]);
++
++    $response = $this->actingAs($manager)
++        ->post(route('process-instances.cancel', $instance), [
++            'reason' => 'Duplicate request',
++        ]);
++
++    $response->assertRedirect()->assertSessionHas('success');
++
++    $instance->refresh();
++    expect($instance->status)->toBeInstanceOf(ProcessCancelled::class);
++    expect($instance->completed_at)->not->toBeNull();
++
++    $step1->refresh();
++    expect($step1->status)->toBeInstanceOf(StepSkipped::class);
++    expect($step1->completion_notes)->toBe('CANCELLED WITH INSTANCE: Duplicate request');
++
++    // AC3: Activity log checks
++    $instanceLog = Activity::where('subject_id', $instance->id)
++        ->where('subject_type', ProcessInstance::class)
++        ->where('description', 'cancelled')
++        ->first();
++
++    expect($instanceLog)->not->toBeNull();
++    expect($instanceLog->causer_id)->toBe($manager->id);
++    expect($instanceLog->properties['reason'])->toBe('Duplicate request');
++});
++
++// ─── AC5: Security/Permissions ────────────────────────────────────────────────
++
++test('non-manager cannot override or cancel', function () {
++    $executor = User::factory()->create();
++    $executor->assignRole('executor');
++
++    $manager = User::factory()->create();
++    $manager->assignRole('manager');
++
++    $template = ProcessTemplate::create(['name' => 'Security Test', 'created_by' => 1]);
++
++    $instance = ProcessInstance::create([
++        'template_id' => $template->id,
++        'name' => 'Instance 1',
++        'template_snapshot_data' => [],
++        'launched_by' => $manager->id,
++        'status' => 'running',
++    ]);
++
++    $step1 = StepExecution::create([
++        'instance_id' => $instance->id,
++        'name' => 'Step 1',
++        'order' => 1,
++        'status' => 'pending',
++        'assigned_to' => $executor->id,
++        'step_snapshot_data' => [],
++    ]);
++
++    $this->actingAs($executor)
++        ->post(route('step-executions.override', $step1), ['reason' => 'Try override'])
++        ->assertForbidden();
++
++    $this->actingAs($executor)
++        ->post(route('process-instances.cancel', $instance), ['reason' => 'Try cancel'])
++        ->assertForbidden();
++});
++
++test('reason is required for override and cancel', function () {
++    $manager = User::factory()->create();
++    $manager->assignRole('manager');
++
++    $template = ProcessTemplate::create(['name' => 'Validation Test', 'created_by' => 1]);
++
++    $instance = ProcessInstance::create([
++        'template_id' => $template->id,
++        'name' => 'Instance 1',
++        'template_snapshot_data' => [],
++        'launched_by' => $manager->id,
++        'status' => 'running',
++    ]);
++
++    $step1 = StepExecution::create([
++        'instance_id' => $instance->id,
++        'name' => 'Step 1',
++        'order' => 1,
++        'status' => 'pending',
++        'assigned_to' => 1,
++        'step_snapshot_data' => [],
++    ]);
++
++    $this->actingAs($manager)
++        ->post(route('step-executions.override', $step1), [])
++        ->assertSessionHasErrors(['reason']);
++
++    $this->actingAs($manager)
++        ->post(route('process-instances.cancel', $instance), [])
++        ->assertSessionHasErrors(['reason']);
++});
