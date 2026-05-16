@@ -51,7 +51,8 @@ class LaunchProcessInstance
             // AC1 & FR8: Create first StepExecution
             $firstStepDef = $template->stepDefinitions->sortBy('order')->first();
             if ($firstStepDef) {
-                StepExecution::create([
+                // AC8: Auto-assign first step (FR8)
+                $firstStep = StepExecution::create([
                     'instance_id' => $instance->id,
                     'step_definition_id' => $firstStepDef->id,
                     'step_snapshot_data' => $firstStepDef->toArray(),
@@ -61,8 +62,11 @@ class LaunchProcessInstance
                     'assigned_to' => $this->resolveAssignee->handle($firstStepDef->toArray()),
                     'deadline_at' => now()->addHours($firstStepDef->duration_hours),
                 ]);
-            }
 
+                if ($firstStep->assigned_to) {
+                    event(new \App\Events\TaskAssigned($firstStep));
+                }
+            }
             event(new ProcessLaunched($instance));
 
             return $instance;

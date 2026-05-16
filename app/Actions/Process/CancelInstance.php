@@ -42,6 +42,8 @@ class CancelInstance
                     ->withProperties(['reason' => $reason])
                     ->log('cancelled');
             }
+
+            event(new \App\Events\ProcessInstanceUpdated($instance));
         });
     }
 }

@@ -6,6 +6,7 @@ use App\States\StepExecution\StepExecutionState;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\ModelStates\HasStates;
 
 class StepExecution extends Model
@@ -25,6 +26,7 @@ class StepExecution extends Model
         'completed_at',
         'completed_by',
         'completion_notes',
+        'unacknowledged_notified_at',
         'deadline_notified_at',
     ];
 
@@ -58,5 +60,10 @@ class StepExecution extends Model
     public function finisher(): BelongsTo
     {
         return $this->belongsTo(User::class, 'completed_by');
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(StepMessage::class);
     }
 }

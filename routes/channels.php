@@ -6,8 +6,13 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
 
-Broadcast::channel('organization.{orgId}', function ($user, $orgId) {
+Broadcast::channel('system.instances', function ($user) {
     return $user->hasAnyRole(['admin', 'manager', 'process_designer']);
+});
+
+Broadcast::channel('instance.{instanceId}', function ($user, $instanceId) {
+    $instance = \App\Models\ProcessInstance::find($instanceId);
+    return $instance ? $user->can('view', $instance) : false;
 });
 
 Broadcast::channel('user.{userId}', function ($user, $userId) {

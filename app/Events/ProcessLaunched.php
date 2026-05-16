@@ -18,10 +18,8 @@ class ProcessLaunched implements ShouldBroadcast
 
     public function broadcastOn(): array
     {
-        // ADR-020: organization.{orgId} - For now, we don't have orgId, so using global org channel or similar
-        // Since we are single-tenant as per ADR-001, we might use a fixed org ID or just 'organization'
         return [
-            new PrivateChannel('organization.1'),
+            new PrivateChannel('system.instances'),
         ];
     }
 }

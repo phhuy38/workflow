@@ -1,6 +1,6 @@
 # Story 3.2: Executor acknowledge/complete step (FR10, FR11, FR12, FR15)
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -58,17 +58,23 @@ so that I can fulfill my tasks and move the process forward.
 
 ### Review Findings
 
-- [ ] [Review][Decision] StepExecutionPolicy completeness — Policy only checks `assigned_to` for `acknowledge/complete`. Does not account for instance status (Cancelled/Paused) or upcoming Manager overrides.
-- [ ] [Review][Decision] Index View Filter — ProcessInstanceController only shows instances launched by the user. Hides instances where the user is an executor.
-- [ ] [Review][Decision] Activity Log assertions — Missing explicit assertions in StepExecutionTest for activity logs.
-- [ ] [Review][Patch] Snapshot Bypass — CompleteStep uses live template instead of `$instance->template_snapshot_data` to find next step. Violates ADR-006.
-- [ ] [Review][Patch] Missing Context Display — AC4 violated: ProcessInstanceResource lacks context_data and Show.vue doesn't display it.
-- [ ] [Review][Patch] Missing Notes Display — Show.vue doesn't display `completion_notes` on completed steps.
-- [ ] [Review][Patch] Double DB Updates — AcknowledgeStep and CompleteStep call transitionTo() then update(), causing redundant queries.
-- [ ] [Review][Patch] N+1 Query in Resource — ProcessInstanceResource methods trigger N+1 queries on step_executions.
-- [ ] [Review][Patch] Hardcoded Order Assumption — LaunchProcessInstance assumes first step order is 1.
-- [ ] [Review][Patch] SoftDelete vs Cascade — ProcessInstance uses SoftDeletes but step_executions migration uses physical cascade.
-- [ ] [Review][Patch] Vue Syntax Error — Duplicate closing tags in Create.vue.
+- [x] [Review][Defer] StepExecutionPolicy completeness — Policy only checks `assigned_to` for `acknowledge/complete`. Does not account for instance status (Cancelled/Paused) or upcoming Manager overrides. — deferred, để mặc định
+- [x] [Review][Patch] Index View Filter — ProcessInstanceController only shows instances launched by the user. Hides instances where the user is an executor.
+- [x] [Review][Patch] Activity Log assertions — Missing explicit assertions in StepExecutionTest for activity logs.
+- [x] [Review][Patch] Snapshot Bypass — CompleteStep uses live template instead of `$instance->template_snapshot_data` to find next step. Violates ADR-006.
+- [x] [Review][Patch] Missing Context Display — AC4 violated: ProcessInstanceResource lacks context_data and Show.vue doesn't display it.
+- [x] [Review][Patch] Missing Notes Display — Show.vue doesn't display `completion_notes` on completed steps.
+- [x] [Review][Patch] Double DB Updates — AcknowledgeStep and CompleteStep call transitionTo() then update(), causing redundant queries.
+- [x] [Review][Patch] N+1 Query in Resource — ProcessInstanceResource methods trigger N+1 queries on step_executions.
+- [x] [Review][Patch] Hardcoded Order Assumption — LaunchProcessInstance assumes first step order is 1.
+- [x] [Review][Patch] SoftDelete vs Cascade — ProcessInstance uses SoftDeletes but step_executions migration uses physical cascade.
+- [x] [Review][Patch] Vue Syntax Error — Duplicate closing tags in Create.vue.
+- [x] [Review][Patch] Hardcoded Broadcasting ID — app/Events/ProcessLaunched.php uses organization.1.
+- [x] [Review][Patch] Data Type Mismatch — Create.vue context_data string vs backend array validation.
+- [x] [Review][Patch] Progress Logic — getProgress() calculates based on generated steps, not total template steps.
+- [x] [Review][Patch] Unused ModelStates Default — Hardcoding status to pending instead of using ModelStates defaults.
+- [x] [Review][Patch] Error Swallowed — bootstrap/app.php removes throw $e.
+- [x] [Review][Patch] Null Assignee Handling — Next step assignee_type is not user, leaving assignee null.
 - [x] [Review][Defer] Role-Coupled Authorization Flaw — ProcessInstancePolicy restricts view based on role, not just assignment. Pre-existing. — deferred, pre-existing
 
 ## Dev Agent Record

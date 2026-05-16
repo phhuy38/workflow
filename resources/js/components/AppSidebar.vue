@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid, LayoutTemplate, Settings, Users } from 'lucide-vue-next';
+import { BookOpen, FolderGit2, LayoutGrid, LayoutTemplate, Settings, Users, Inbox } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
@@ -20,6 +20,7 @@ import { dashboard } from '@/routes';
 import { index as systemIndex } from '@/routes/admin/system';
 import { index as usersIndex } from '@/routes/admin/users';
 import { index as templatesIndex } from '@/routes/process-templates';
+import { index as inboxIndex } from '@/routes/inbox';
 import type { NavItem } from '@/types';
 
 const { can } = usePermission();
@@ -33,6 +34,14 @@ const mainNavItems = computed((): NavItem[] => {
             title: 'Dashboard',
             href: dashboard(),
             icon: LayoutGrid,
+        });
+    }
+
+    if (can('complete_assigned_steps')) {
+        items.push({
+            title: 'Inbox',
+            href: inboxIndex().url,
+            icon: BookOpen, // Or another icon like Inbox if available, using BookOpen for now or lucide Inbox
         });
     }
 

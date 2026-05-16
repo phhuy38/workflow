@@ -66,17 +66,24 @@ function unpublishTemplate() {
     router.post(route('process-templates.unpublish', props.template.id));
 }
 
+import { usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
+
+const page = usePage();
+const templateTitle = computed(() => {
+    return page.props.template?.name || 'Chi tiết Template';
+});
+
+// Since defineOptions cannot access props, we use a generic title or omit the dynamic part
 defineOptions({
     layout: {
         breadcrumbs: [
             { title: 'Dashboard', href: '/dashboard' },
             { title: 'Templates', href: templatesIndex().url },
-            { title: props.template.name, href: templatesShow({ process_template: props.template.id }).url },
+            { title: 'Chi tiết Template', href: '#' },
         ],
     },
 });
-
-const page = usePage();
 
 function getFlash(key: string): string | null {
     const flash = page.props.flash as Record<string, unknown> | undefined;

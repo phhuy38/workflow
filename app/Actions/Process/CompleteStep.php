@@ -17,6 +17,10 @@ class CompleteStep
 
     public function handle(StepExecution $step, User $user, array $data = []): void
     {
+        if ($step->status->getValue() === 'completed') {
+            return;
+        }
+
         DB::transaction(function () use ($step, $user, $data) {
             $step->completed_at = now();
             $step->completed_by = $user->id;
@@ -31,6 +35,13 @@ class CompleteStep
                 ->log('completed');
 
             $this->advanceProcess->handle($step->instance, $step, $user);
+
+            DB::afterCommit(function () use ($step) {
+                event(new \App\Events\StepCompleted($step));
+                event(new \App\Events\StepExecutionUpdated($step));
+                $step->instance->refresh();
+                event(new \App\Events\ProcessInstanceUpdated($step->instance));
+            });
         });
     }
 }

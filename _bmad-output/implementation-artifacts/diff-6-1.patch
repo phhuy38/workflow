@@ -1,0 +1,54 @@
+diff --git a/app/Actions/Process/AdvanceProcessInstance.php b/app/Actions/Process/AdvanceProcessInstance.php
+index 3fec29a..fa9ba8f 100644
+--- a/app/Actions/Process/AdvanceProcessInstance.php
++++ b/app/Actions/Process/AdvanceProcessInstance.php
+@@ -25,7 +25,7 @@ public function handle(ProcessInstance $instance, StepExecution $currentStep, Us
+ 
+         if ($nextStepDef) {
+             // AC3: Create next StepExecution (FR12)
+-            StepExecution::create([
++            $newStep = StepExecution::create([
+                 'instance_id' => $instance->id,
+                 'step_definition_id' => $nextStepDef['id'],
+                 'step_snapshot_data' => $nextStepDef,
+@@ -36,6 +36,13 @@ public function handle(ProcessInstance $instance, StepExecution $currentStep, Us
+                 'deadline_at' => now()->addHours($nextStepDef['duration_hours']),
+             ]);
+ 
++            DB::afterCommit(function () use ($newStep) {
++                event(new \App\Events\StepExecutionUpdated($newStep));
++                if ($newStep->assigned_to) {
++                    event(new \App\Events\TaskAssigned($newStep));
++                }
++            });
++
+             // Optionally fire an event/notification here in future stories
+         } else {
+             // AC3: No more steps, complete the process
+diff --git a/app/Actions/Process/LaunchProcessInstance.php b/app/Actions/Process/LaunchProcessInstance.php
+index f09be19..3d0831c 100644
+--- a/app/Actions/Process/LaunchProcessInstance.php
++++ b/app/Actions/Process/LaunchProcessInstance.php
+@@ -51,7 +51,8 @@ public function handle(ProcessTemplate $template, array $data, User $launcher):
+             // AC1 & FR8: Create first StepExecution
+             $firstStepDef = $template->stepDefinitions->sortBy('order')->first();
+             if ($firstStepDef) {
+-                StepExecution::create([
++                // AC8: Auto-assign first step (FR8)
++                $firstStep = StepExecution::create([
+                     'instance_id' => $instance->id,
+                     'step_definition_id' => $firstStepDef->id,
+                     'step_snapshot_data' => $firstStepDef->toArray(),
+@@ -61,8 +62,11 @@ public function handle(ProcessTemplate $template, array $data, User $launcher):
+                     'assigned_to' => $this->resolveAssignee->handle($firstStepDef->toArray()),
+                     'deadline_at' => now()->addHours($firstStepDef->duration_hours),
+                 ]);
+-            }
+ 
++                if ($firstStep->assigned_to) {
++                    event(new \App\Events\TaskAssigned($firstStep));
++                }
++            }
+             event(new ProcessLaunched($instance));
+ 
+             return $instance;

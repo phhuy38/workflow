@@ -25,7 +25,7 @@ class AdvanceProcessInstance
 
         if ($nextStepDef) {
             // AC3: Create next StepExecution (FR12)
-            StepExecution::create([
+            $newStep = StepExecution::create([
                 'instance_id' => $instance->id,
                 'step_definition_id' => $nextStepDef['id'],
                 'step_snapshot_data' => $nextStepDef,
@@ -35,6 +35,13 @@ class AdvanceProcessInstance
                 'assigned_to' => $this->resolveAssignee->handle($nextStepDef),
                 'deadline_at' => now()->addHours($nextStepDef['duration_hours']),
             ]);
+
+            DB::afterCommit(function () use ($newStep) {
+                event(new \App\Events\StepExecutionUpdated($newStep));
+                if ($newStep->assigned_to) {
+                    event(new \App\Events\TaskAssigned($newStep));
+                }
+            });
 
             // Optionally fire an event/notification here in future stories
         } else {

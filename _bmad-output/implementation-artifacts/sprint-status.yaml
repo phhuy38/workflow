@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-12
-last_updated: 2026-05-15
+last_updated: 2026-05-16
 project: workflow
 
 project_key: NOKEY
@@ -61,40 +61,40 @@ development_status:
   epic-2-retrospective: optional
 
   # ─── Epic 3: Process Instance Execution ───
-  epic-3: in-progress
+  epic-3: done
   3-1-launch-process-instance: done
-  3-2-executor-acknowledge-complete-step: review
-  3-3-automatic-step-progression-process-completion: review
+  3-2-executor-acknowledge-complete-step: done
+  3-3-automatic-step-progression-process-completion: done
   3-4-manager-override-step-cancel-instance: done
   3-5-activity-log-full-audit-trail: done
   epic-3-retrospective: optional
 
   # ─── Epic 4: Manager Dashboard & Real-time Visibility ───
-  epic-4: in-progress
-  4-1-manager-dashboard-traffic-light-status: ready-for-dev
-  4-2-filter-search-instances: backlog
-  4-3-instance-detail-progress-tracking: backlog
-  4-4-real-time-dashboard-instance-updates-via-websocket: backlog
-  4-5-inline-manager-ping-send-message-to-executor: backlog
+  epic-4: done
+  4-1-manager-dashboard-traffic-light-status: done
+  4-2-filter-search-instances: done
+  4-3-instance-detail-progress-tracking: done
+  4-4-real-time-dashboard-instance-updates-via-websocket: done
+  4-5-inline-manager-ping-send-message-to-executor: done
   epic-4-retrospective: optional
 
   # ─── Epic 5: Executor Inbox & Task Management ───
-  epic-5: backlog
-  5-1-executor-inbox-consolidated-sorted-task-list: backlog
-  5-2-view-task-detail-with-process-context: backlog
-  5-3-quick-complete-task-from-inbox-list: backlog
+  epic-5: done
+  5-1-executor-inbox-consolidated-sorted-task-list: done
+  5-2-view-task-detail-with-process-context: done
+  5-3-quick-complete-task-from-inbox-list: done
   epic-5-retrospective: optional
 
   # ─── Epic 6: Notifications & Proactive Alerts ───
-  epic-6: backlog
-  6-1-task-assignment-email-notification: backlog
-  6-2-deadline-unacknowledged-step-alerts: backlog
-  6-3-pre-account-beneficiary-email-notification: backlog
+  epic-6: done
+  6-1-task-assignment-email-notification: done
+  6-2-deadline-unacknowledged-step-alerts: done
+  6-3-pre-account-beneficiary-email-notification: done
   epic-6-retrospective: optional
 
   # ─── Epic 7: Beneficiary Experience & In-System Messaging ───
-  epic-7: backlog
-  7-1-beneficiary-auto-account-creation: backlog
-  7-2-beneficiary-view-my-process-status: backlog
-  7-3-beneficiary-ping-in-system-messaging-reply: backlog
+  epic-7: done
+  7-1-beneficiary-auto-account-creation: done
+  7-2-beneficiary-view-my-process-status: done
+  7-3-beneficiary-ping-in-system-messaging-reply: done
   epic-7-retrospective: optional

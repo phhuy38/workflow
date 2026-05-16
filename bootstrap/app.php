@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            \App\Http\Middleware\ForcePasswordReset::class,
             // ApplySystemSettings must run AFTER session middleware (already registered above)
             // to ensure session config is applied correctly. Placed last in web() append list.
             ApplySystemSettings::class,

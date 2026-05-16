@@ -1,0 +1,175 @@
+<?php
+
+namespace App\Mail;
+
+use App\Models\ProcessInstance;
+use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Queue\SerializesModels;
+
+class PreAccountBeneficiaryWelcomeMail extends Mailable
+{
+    use Queueable, SerializesModels;
+
+    public function __construct(public ProcessInstance $instance)
+    {
+    }
+
+    public function envelope(): Envelope
+    {
+        return new Envelope(
+            subject: "Thông báo quy trình mới: {$this->instance->name}",
+        );
+    }
+
+    public function content(): Content
+    {
+        return new Content(
+            markdown: 'emails.beneficiary-welcome',
+            with: [
+                'instanceName' => $this->instance->name,
+                'creatorName' => $this->instance->creator?->full_name ?? 'Hệ thống',
+            ],
+        );
+    }
+
+    public function attachments(): array
+    {
+        return [];
+    }
+}
+<?php
+
+namespace App\Listeners;
+
+use App\Events\ProcessLaunched;
+use App\Mail\PreAccountBeneficiaryWelcomeMail;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+
+class SendBeneficiaryWelcomeEmail implements ShouldQueue
+{
+    use InteractsWithQueue;
+
+    public $tries = 3;
+    public bool $deleteWhenMissingModels = true;
+
+    public function backoff(): array
+    {
+        return [10, 30, 60];
+    }
+
+    public function viaConnection(): string
+    {
+        return config('queue.default');
+    }
+
+    public function viaQueue(): string
+    {
+        return 'notifications';
+    }
+
+    public function handle(ProcessLaunched $event): void
+    {
+        $event->instance->loadMissing('creator');
+
+        $beneficiaryEmail = $event->instance->context_data['beneficiary_email'] ?? null;
+
+        if (! $beneficiaryEmail) {
+            return;
+        }
+
+        try {
+            Mail::to($beneficiaryEmail)->queue(new PreAccountBeneficiaryWelcomeMail($event->instance));
+        } catch (\Throwable $e) {
+            Log::error("Failed to send Beneficiary Welcome email to {$beneficiaryEmail}", ['exception' => $e]);
+        }
+    }
+}
+<x-mail::message>
+# Thông báo khởi tạo quy trình
+
+Chào bạn,
+
+Hệ thống vừa khởi tạo một quy trình mới liên quan đến bạn: **{{ $instanceName }}**.  
+Người khởi tạo: **{{ $creatorName }}**.
+
+Hiện tại, quy trình đang được các bộ phận liên quan xử lý. Bạn sẽ nhận được thông tin đăng nhập chính thức khi quy trình chuyển đến bước cần bạn trực tiếp tương tác hoặc kiểm tra thông tin.
+
+Vui lòng theo dõi email để nhận các cập nhật tiếp theo.
+
+Cảm ơn bạn,  
+{{ config('app.name') }}
+</x-mail::message><?php
+
+use App\Events\ProcessLaunched;
+use App\Mail\PreAccountBeneficiaryWelcomeMail;
+use App\Models\ProcessInstance;
+use App\Models\ProcessTemplate;
+use App\Models\User;
+use Database\Seeders\RequiredDataSeeder;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
+
+beforeEach(function () {
+    $this->seed(RequiredDataSeeder::class);
+});
+
+test('process launched event queues beneficiary welcome mail if email exists', function () {
+    Mail::fake();
+    Event::fake([ProcessLaunched::class]);
+
+    $manager = User::factory()->create();
+    $manager->assignRole('manager');
+
+    $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
+    
+    // Launch instance via route
+    $this->actingAs($manager)
+        ->post(route('process-instances.store'), [
+            'template_id' => $template->id,
+            'name' => 'Beneficiary Test Instance',
+            'context_data' => [
+                'beneficiary_email' => 'test_beneficiary@example.com'
+            ],
+        ])->assertSessionHasNoErrors();
+
+    // The listener listens to ProcessLaunched, but since we faked the event, we can test the listener directly
+    $instance = ProcessInstance::latest('id')->first();
+    $event = new ProcessLaunched($instance);
+    
+    $listener = new \App\Listeners\SendBeneficiaryWelcomeEmail();
+    $listener->handle($event);
+
+    Mail::assertQueued(PreAccountBeneficiaryWelcomeMail::class, function ($mail) {
+        return $mail->hasTo('test_beneficiary@example.com');
+    });
+});
+
+test('listener does not queue mail if beneficiary email is absent', function () {
+    Mail::fake();
+
+    $manager = User::factory()->create();
+    $manager->assignRole('manager');
+
+    $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
+    $instance = ProcessInstance::create([
+        'template_id' => $template->id,
+        'name' => 'No Beneficiary Instance',
+        'launched_by' => $manager->id,
+        'status' => 'running',
+        'template_snapshot_data' => [],
+        'context_data' => [] // Empty context data
+    ]);
+
+    $event = new ProcessLaunched($instance);
+    
+    $listener = new \App\Listeners\SendBeneficiaryWelcomeEmail();
+    $listener->handle($event);
+
+    Mail::assertNotQueued(PreAccountBeneficiaryWelcomeMail::class);
+});

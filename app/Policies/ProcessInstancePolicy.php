@@ -9,7 +9,7 @@ class ProcessInstancePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasPermissionTo('view_all_instances');
+        return $user->hasPermissionTo('view_all_instances') || $user->hasRole(['beneficiary', 'executor']);
     }
 
     /**
@@ -46,7 +46,7 @@ class ProcessInstancePolicy
         // For now, created_for might be stored in context_data or a dedicated column.
         // PRD says Manager provides list of beneficiaries.
         // ADR-017 mentions created_for.
-        return $instance->created_for === $user->id;
+        return $instance->created_for == $user->id;
     }
 
     public function create(User $user): bool
@@ -66,17 +66,17 @@ class ProcessInstancePolicy
 
     public function cancel(User $user, ProcessInstance $instance): bool
     {
-        return $user->hasRole('admin') || ($user->hasRole('manager') && $user->id === $instance->launched_by);
+        return $user->hasRole('admin') || ($user->hasRole('manager') && $user->id == $instance->launched_by);
     }
 
     public function override(User $user, ProcessInstance $instance): bool
     {
-        return $user->hasRole('admin') || ($user->hasRole('manager') && $user->id === $instance->launched_by);
+        return $user->hasRole('admin') || ($user->hasRole('manager') && $user->id == $instance->launched_by);
     }
 
     public function ping(User $user, ProcessInstance $instance): bool
     {
-        return $user->hasRole(['admin', 'manager']);
+        return $user->hasRole(['admin', 'manager']) || ($user->hasRole('beneficiary') && $this->isBeneficiaryForInstance($user, $instance));
     }
 
     public function viewFullLog(User $user, ProcessInstance $instance): bool

@@ -32,4 +32,18 @@ class StepExecutionPolicy
         }
         return ($user->id === $step->assigned_to || $user->hasRole(['admin', 'manager'])) && $step->status->getValue() === 'in_progress';
     }
+
+    public function addMessage(User $user, StepExecution $step): bool
+    {
+        if (in_array($step->status->getValue(), ['completed', 'cancelled', 'skipped'])) {
+            return false;
+        }
+
+        return match (true) {
+            $user->hasRole(['admin', 'manager']) => true,
+            $user->id == $step->assigned_to => true,
+            $user->hasRole('beneficiary') && $step->instance->created_for == $user->id => true,
+            default => false,
+        };
+    }
 }

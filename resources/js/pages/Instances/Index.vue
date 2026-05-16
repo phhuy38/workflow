@@ -64,8 +64,8 @@ function formatDate(isoString: string): string {
 
     <div class="flex flex-col gap-6 p-6">
         <div class="flex items-center justify-between">
-            <h1 class="text-2xl font-semibold">Quy trình đang chạy</h1>
-            <Button as="a" href="/process-instances/create">Khởi động quy trình mới</Button>
+            <h1 class="text-2xl font-semibold">Danh sách quy trình</h1>
+            <Button v-if="$page.props.auth.can?.launch_instances" as="a" href="/process-instances/create">Khởi động quy trình mới</Button>
         </div>
 
         <div class="rounded-md border">
@@ -115,7 +115,7 @@ function formatDate(isoString: string): string {
                     </TableRow>
                     <TableRow v-if="instances.length === 0">
                         <TableCell colspan="7" class="text-muted-foreground py-8 text-center">
-                            Chưa có quy trình nào đang chạy. Nhấn "Khởi động quy trình mới" để bắt đầu.
+                            Chưa có quy trình nào đang chạy liên quan đến bạn.
                         </TableCell>
                     </TableRow>
                 </TableBody>

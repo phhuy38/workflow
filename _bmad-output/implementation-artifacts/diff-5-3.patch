@@ -1,0 +1,20 @@
+diff --git a/app/Http/Controllers/StepExecutionController.php b/app/Http/Controllers/StepExecutionController.php
+index 6bd01f9..77732f3 100644
+--- a/app/Http/Controllers/StepExecutionController.php
++++ b/app/Http/Controllers/StepExecutionController.php
+@@ -20,8 +20,14 @@ public function acknowledge(StepExecution $stepExecution, AcknowledgeStep $actio
+         return redirect()->back()->with('success', 'Đã xác nhận nhận việc.');
+     }
+ 
+-    public function complete(Request $request, StepExecution $stepExecution, CompleteStep $action): RedirectResponse
++    public function complete(Request $request, StepExecution $stepExecution, CompleteStep $action, AcknowledgeStep $acknowledgeAction): RedirectResponse
+     {
++        // Auto-acknowledge if pending (FR23)
++        if ($stepExecution->status->getValue() === 'pending') {
++            $this->authorize('acknowledge', $stepExecution);
++            $acknowledgeAction->handle($stepExecution, auth()->user());
++        }
++
+         $this->authorize('complete', $stepExecution);
+ 
+         $validated = $request->validate([

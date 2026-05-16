@@ -57,3 +57,21 @@
 - Hardcoded Translations — `ActivityResource` hardcodes Vietnamese strings instead of using Laravel's localization system.
 - Fat Controller — The polymorphic ORM query in `ProcessInstanceController` should be extracted to a dedicated Service or Action class.
 - Scale & Performance Risks — Missing pagination for activity logs, which could degrade performance for long-running processes.
+
+## Deferred from: code review of 3-2-executor-acknowledge-complete-step.md (2026-05-16)
+- StepExecutionPolicy completeness — Policy only checks assigned_to for acknowledge/complete. Does not account for instance status (Cancelled/Paused) or upcoming Manager overrides. — để mặc định
+
+## Deferred from: code review of 4-2-filter-search-instances.md (2026-05-16)
+- Thiếu cấu hình Pinia — Dù đã cài pinia, hệ thống vẫn dùng @vueuse/core để quản lý state. Không cấu hình Pinia trong app.ts. — VueUse is sufficient for MVP
+- Load toàn bộ Select Options bằng get() và thiếu Pagination — acceptable for MVP scale
+- Hardcode namespace backend và text tiếng Việt ở Frontend — pre-existing convention
+- Rủi ro Full table scan do LOWER() LIKE — implemented to support SQLite tests
+
+## Deferred from: code review of 4-4-real-time-dashboard-instance-updates-via-websocket.md (2026-05-16)
+- Phụ thuộc Client Time — Tính toán isOverdue dựa trên client time thay vì server time. — acceptable for MVP
+- Thiếu context_data trong UI — pre-existing scope của story 3.2/4.3. — pre-existing
+
+## Deferred from: code review of 5-1-executor-inbox-consolidated-sorted-task-list.md (2026-05-16)
+- Logic tính toán Urgency Status (sai lệch mốc thời gian) — Dùng created_at thay vì lúc được gán (started_at). — acceptable for MVP
+- Lỗi logic đếm thời gian quy trình bị hủy — Dùng now() nếu completed_at null. — acceptable for MVP
+- DashboardController Bypass Policy — Sử dụng hasRole thay vì authorize. Thuộc phạm vi story 4.1. — pre-existing

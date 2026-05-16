@@ -1,0 +1,528 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Resources\ProcessInstanceResource;
+use App\Models\ProcessInstance;
+use App\States\ProcessInstance\Running;
+use App\Models\User;
+use App\Models\ProcessTemplate;
+use Inertia\Inertia;
+use Inertia\Response;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Http\Request;
+
+class DashboardController extends Controller
+{
+    public function index(Request $request): Response
+    {
+        // For Manager/Admin/Designer
+        if (auth()->user()->hasRole(['admin', 'manager', 'process_designer'])) {
+            $validated = $request->validate([
+                'search' => 'nullable|string',
+                'template_id' => 'nullable|integer',
+                'status' => 'nullable|string',
+                'executor_id' => 'nullable|integer',
+            ]);
+
+            $query = ProcessInstance::with(['template', 'creator', 'stepExecutions']);
+
+            if (isset($validated['search']) && $validated['search'] !== '') {
+                $query->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($validated['search']) . '%']);
+            }
+
+            if (isset($validated['template_id']) && $validated['template_id'] !== '') {
+                $query->where('template_id', $validated['template_id']);
+            }
+
+            if (isset($validated['status']) && $validated['status'] !== '') {
+                // Ensure status class is allowed before querying
+                $allowedStatuses = [
+                    \App\States\ProcessInstance\Running::class,
+                    \App\States\ProcessInstance\Completed::class,
+                    \App\States\ProcessInstance\Cancelled::class,
+                ];
+                if (in_array($validated['status'], $allowedStatuses)) {
+                    $query->whereState('status', $validated['status']);
+                }
+            } else {
+                // Default to Running instances
+                $query->whereState('status', Running::class);
+            }
+
+            if (isset($validated['executor_id']) && $validated['executor_id'] !== '') {
+                $query->whereHas('stepExecutions', function ($q) use ($validated) {
+                    $q->whereIn('status', ['pending', 'in_progress'])
+                      ->where('assigned_to', $validated['executor_id']);
+                });
+            }
+
+            $instances = $query->get();
+
+            $resourceCollection = ProcessInstanceResource::collection($instances)->resolve();
+
+            // Sắp xếp: critical (đỏ) -> warning (vàng) -> normal (xanh)
+            $order = ['critical' => 1, 'warning' => 2, 'normal' => 3];
+            usort($resourceCollection, fn($a, $b) => ($order[$a['traffic_light_status']] ?? 4) <=> ($order[$b['traffic_light_status']] ?? 4));
+
+            // Load options for filter dropdowns
+            $templates = ProcessTemplate::select('id', 'name')->orderBy('name')->get();
+            $executors = User::role('executor')->select('id', 'full_name as name')->orderBy('full_name')->get();
+
+            return Inertia::render('Dashboard', [
+                'instances' => $resourceCollection,
+                'can_view_manager_dashboard' => true,
+                'filters' => $validated,
+                'filterOptions' => [
+                    'templates' => $templates,
+                    'executors' => $executors,
+                ]
+            ]);
+        }
+
+        // Beneficiary/Executor empty dashboard
+        if (auth()->user()->hasRole('beneficiary')) {
+            return redirect()->route('process-instances.index');
+        }
+
+        if (auth()->user()->hasRole('executor')) {
+            return redirect()->route('inbox.index');
+        }
+
+        return Inertia::render('Dashboard', [
+            'can_view_manager_dashboard' => false,
+        ]);
+    }
+}
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Actions\Process\CancelInstance;
+use App\Actions\Process\LaunchProcessInstance;
+use App\Http\Requests\Process\LaunchProcessRequest;
+use App\Http\Resources\ActivityResource;
+use App\Http\Resources\ProcessInstanceResource;
+use App\Http\Resources\ProcessTemplateResource;
+use App\Http\Resources\StepExecutionResource;
+use App\Models\ProcessInstance;
+use App\Models\ProcessTemplate;
+use App\Models\StepExecution;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+use Spatie\Activitylog\Models\Activity;
+
+class ProcessInstanceController extends Controller
+{
+    public function index(): Response
+    {
+        $this->authorize('viewAny', ProcessInstance::class);
+
+        $query = ProcessInstance::with(['template', 'creator'])->latest();
+
+        // RBAC filtering (ADR-004)
+        if (auth()->user()->hasRole('beneficiary')) {
+            $query->where('created_for', auth()->id());
+        } elseif (! auth()->user()->hasRole(['admin', 'manager', 'process_designer'])) {
+            $query->where(function ($q) {
+                $q->where('launched_by', auth()->id())
+                  ->orWhereHas('stepExecutions', fn($stepQ) => $stepQ->where('assigned_to', auth()->id()));
+            });
+        }
+
+        $instances = $query->get();
+
+        return Inertia::render('Instances/Index', [
+            'instances' => ProcessInstanceResource::collection($instances)->resolve(),
+        ]);
+    }
+
+    public function create(): Response
+    {
+        $this->authorize('create', ProcessInstance::class);
+
+        $templates = ProcessTemplate::published()->withCount('stepDefinitions')->get();
+
+        return Inertia::render('Instances/Create', [
+            'templates' => ProcessTemplateResource::collection($templates)->resolve(),
+        ]);
+    }
+
+    public function store(LaunchProcessRequest $request, LaunchProcessInstance $action): RedirectResponse
+    {
+        $template = ProcessTemplate::findOrFail($request->template_id);
+
+        $instance = $action->handle($template, $request->validated(), auth()->user());
+
+        return redirect()
+            ->route('process-instances.show', $instance)
+            ->with('success', 'Quy trình đã được khởi động.');
+    }
+
+    public function show(ProcessInstance $processInstance): Response
+    {
+        $this->authorize('view', $processInstance);
+
+        $processInstance->load(['template', 'creator', 'stepExecutions.assignee', 'stepExecutions.finisher', 'stepExecutions.messages.sender']);
+
+        $activities = [];
+        $canViewFullLog = auth()->user()->can('viewFullLog', $processInstance);
+
+        if ($canViewFullLog) {
+            $stepIds = $processInstance->stepExecutions->pluck('id');
+            $rawActivities = Activity::where(function ($q) use ($processInstance) {
+                $q->where('subject_type', ProcessInstance::class)
+                    ->where('subject_id', $processInstance->id);
+            })->orWhere(function ($q) use ($stepIds) {
+                $q->where('subject_type', StepExecution::class)
+                    ->whereIn('subject_id', $stepIds);
+            })->with(['causer', 'subject'])->latest()->orderByDesc('id')->get();
+            $activities = ActivityResource::collection($rawActivities)->resolve();
+        }
+
+        return Inertia::render('Instances/Show', [
+            'instance' => ProcessInstanceResource::make($processInstance)->resolve(),
+            'steps' => StepExecutionResource::collection($processInstance->stepExecutions)->resolve(),
+            'activities' => $activities,
+            'can' => [
+                'cancel' => auth()->user()->can('cancel', $processInstance),
+                'override' => auth()->user()->can('override', $processInstance),
+                'view_full_log' => $canViewFullLog,
+            ],
+        ]);
+    }
+
+    public function cancel(Request $request, ProcessInstance $processInstance, CancelInstance $action): RedirectResponse
+    {
+        $this->authorize('cancel', $processInstance);
+
+        $validated = $request->validate([
+            'reason' => 'required|string|min:3|max:1000',
+        ]);
+
+        $action->handle($processInstance, auth()->user(), $validated['reason']);
+
+        return redirect()->back()->with('success', 'Quy trình đã được hủy.');
+    }
+}
+<?php
+
+namespace App\Policies;
+
+use App\Models\ProcessInstance;
+use App\Models\User;
+
+class ProcessInstancePolicy
+{
+    public function viewAny(User $user): bool
+    {
+        return $user->hasPermissionTo('view_all_instances') || $user->hasRole(['beneficiary', 'executor']);
+    }
+
+    /**
+     * Ownership-aware check (ADR-004):
+     * - admin/manager/process_designer: always allowed
+     * - executor: only if assigned to a step in this instance
+     * - beneficiary: only if instance was created for them
+     */
+    public function view(User $user, ProcessInstance $instance): bool
+    {
+        return match (true) {
+            $user->hasRole(['admin', 'manager', 'process_designer']) => true,
+            $user->hasRole('executor') && $this->isExecutorAssignedToInstance($user, $instance) => true,
+            $user->hasRole('beneficiary') && $this->isBeneficiaryForInstance($user, $instance) => true,
+            default => false,
+        };
+    }
+
+    /**
+     * Check if executor is assigned to any step in this instance.
+     */
+    private function isExecutorAssignedToInstance(User $user, ProcessInstance $instance): bool
+    {
+        return $instance->stepExecutions()
+            ->where('assigned_to', $user->id)
+            ->exists();
+    }
+
+    /**
+     * Check if beneficiary is the recipient of this instance.
+     */
+    private function isBeneficiaryForInstance(User $user, ProcessInstance $instance): bool
+    {
+        // For now, created_for might be stored in context_data or a dedicated column.
+        // PRD says Manager provides list of beneficiaries.
+        // ADR-017 mentions created_for.
+        return $instance->created_for === $user->id;
+    }
+
+    public function create(User $user): bool
+    {
+        return $user->hasPermissionTo('launch_instances');
+    }
+
+    public function update(User $user, ProcessInstance $instance): bool
+    {
+        return $user->hasRole(['admin', 'manager']);
+    }
+
+    public function delete(User $user, ProcessInstance $instance): bool
+    {
+        return $user->hasRole('admin');
+    }
+
+    public function cancel(User $user, ProcessInstance $instance): bool
+    {
+        return $user->hasRole('admin') || ($user->hasRole('manager') && $user->id === $instance->launched_by);
+    }
+
+    public function override(User $user, ProcessInstance $instance): bool
+    {
+        return $user->hasRole('admin') || ($user->hasRole('manager') && $user->id === $instance->launched_by);
+    }
+
+    public function ping(User $user, ProcessInstance $instance): bool
+    {
+        return $user->hasRole(['admin', 'manager']);
+    }
+
+    public function viewFullLog(User $user, ProcessInstance $instance): bool
+    {
+        // UX-DR9: Only managers and admins can see the full granular tracking
+        return $user->hasRole(['admin', 'manager']);
+    }
+}
+<script setup lang="ts">
+import { Head } from '@inertiajs/vue3';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+
+interface Instance {
+    id: number;
+    name: string;
+    template_name: string;
+    status: string;
+    progress: number;
+    current_step: string;
+    launched_at: string;
+    creator_name: string;
+}
+
+interface Props {
+    instances: Instance[];
+}
+
+defineProps<Props>();
+
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Dashboard', href: '/dashboard' },
+            { title: 'Instances', href: '/process-instances' },
+        ],
+    },
+});
+
+function getStatusVariant(status: string) {
+    switch (status) {
+        case 'running': return 'default';
+        case 'completed': return 'success';
+        case 'cancelled': return 'destructive';
+        case 'paused': return 'warning';
+        default: return 'secondary';
+    }
+}
+
+function formatDate(isoString: string): string {
+    if (!isoString) return 'N/A';
+    return new Date(isoString).toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+</script>
+
+<template>
+    <Head title="Danh sách quy trình đang chạy" />
+
+    <div class="flex flex-col gap-6 p-6">
+        <div class="flex items-center justify-between">
+            <h1 class="text-2xl font-semibold">Danh sách quy trình</h1>
+            <Button v-if="$page.props.auth.can?.launch_instances" as="a" href="/process-instances/create">Khởi động quy trình mới</Button>
+        </div>
+
+        <div class="rounded-md border">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Tên quy trình</TableHead>
+                        <TableHead>Template gốc</TableHead>
+                        <TableHead>Tiến độ</TableHead>
+                        <TableHead>Bước hiện tại</TableHead>
+                        <TableHead>Trạng thái</TableHead>
+                        <TableHead>Ngày khởi động</TableHead>
+                        <TableHead class="text-right">Thao tác</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow v-for="instance in instances" :key="instance.id">
+                        <TableCell class="font-medium">
+                            <div class="flex flex-col">
+                                <span>{{ instance.name }}</span>
+                                <span class="text-xs text-muted-foreground">Người khởi động: {{ instance.creator_name }}</span>
+                            </div>
+                        </TableCell>
+                        <TableCell>{{ instance.template_name }}</TableCell>
+                        <TableCell>
+                            <div class="flex items-center gap-2">
+                                <div class="w-24 h-2 bg-secondary rounded-full overflow-hidden">
+                                    <div class="h-full bg-primary" :style="{ width: instance.progress + '%' }"></div>
+                                </div>
+                                <span class="text-xs font-medium">{{ instance.progress }}%</span>
+                            </div>
+                        </TableCell>
+                        <TableCell>{{ instance.current_step }}</TableCell>
+                        <TableCell>
+                            <Badge :variant="getStatusVariant(instance.status)">
+                                {{ instance.status }}
+                            </Badge>
+                        </TableCell>
+                        <TableCell class="text-sm text-muted-foreground">
+                            {{ formatDate(instance.launched_at) }}
+                        </TableCell>
+                        <TableCell class="text-right">
+                            <Button variant="outline" size="sm" as="a" :href="`/process-instances/${instance.id}`">
+                                Chi tiết
+                            </Button>
+                        </TableCell>
+                    </TableRow>
+                    <TableRow v-if="instances.length === 0">
+                        <TableCell colspan="7" class="text-muted-foreground py-8 text-center">
+                            Chưa có quy trình nào đang chạy liên quan đến bạn.
+                        </TableCell>
+                    </TableRow>
+                </TableBody>
+            </Table>
+        </div>
+    </div>
+</template>
+<?php
+
+use App\Models\ProcessInstance;
+use App\Models\ProcessTemplate;
+use App\Models\User;
+use Database\Seeders\RequiredDataSeeder;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Inertia\Testing\AssertableInertia as Assert;
+use function Pest\Laravel\actingAs;
+
+beforeEach(function () {
+    $this->seed(RequiredDataSeeder::class);
+});
+
+test('beneficiary can see their own instances in the index page', function () {
+    $beneficiary = User::factory()->create();
+    $beneficiary->assignRole('beneficiary');
+
+    $otherUser = User::factory()->create();
+    $otherUser->assignRole('beneficiary');
+
+    $manager = User::factory()->create();
+    $manager->assignRole('manager');
+
+    $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
+    
+    // Instance for our beneficiary
+    $myInstance = ProcessInstance::create([
+        'template_id' => $template->id,
+        'name' => 'My Instance',
+        'launched_by' => $manager->id,
+        'status' => 'running',
+        'created_for' => $beneficiary->id,
+        'template_snapshot_data' => []
+    ]);
+
+    // Instance for other user
+    $otherInstance = ProcessInstance::create([
+        'template_id' => $template->id,
+        'name' => 'Other Instance',
+        'launched_by' => $manager->id,
+        'status' => 'running',
+        'created_for' => $otherUser->id,
+        'template_snapshot_data' => []
+    ]);
+
+    $response = actingAs($beneficiary)->get(route('process-instances.index'));
+    $response->assertOk();
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('Instances/Index')
+        ->has('instances', 1)
+        ->where('instances.0.name', 'My Instance')
+    );
+});
+
+test('beneficiary can view their own instance detail', function () {
+    $beneficiary = User::factory()->create();
+    $beneficiary->assignRole('beneficiary');
+
+    $manager = User::factory()->create();
+    $manager->assignRole('manager');
+
+    $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
+    
+    $myInstance = ProcessInstance::create([
+        'template_id' => $template->id,
+        'name' => 'My Instance',
+        'launched_by' => $manager->id,
+        'status' => 'running',
+        'created_for' => $beneficiary->id,
+        'template_snapshot_data' => []
+    ]);
+
+    $response = actingAs($beneficiary)->get(route('process-instances.show', $myInstance));
+    $response->assertOk();
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('Instances/Show')
+        ->where('instance.name', 'My Instance')
+    );
+});
+
+test('beneficiary gets 403 when viewing someone elses instance', function () {
+    $beneficiary = User::factory()->create();
+    $beneficiary->assignRole('beneficiary');
+
+    $otherUser = User::factory()->create();
+    $otherUser->assignRole('beneficiary');
+
+    $manager = User::factory()->create();
+    $manager->assignRole('manager');
+
+    $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
+    
+    $otherInstance = ProcessInstance::create([
+        'template_id' => $template->id,
+        'name' => 'Other Instance',
+        'launched_by' => $manager->id,
+        'status' => 'running',
+        'created_for' => $otherUser->id,
+        'template_snapshot_data' => []
+    ]);
+
+    $response = actingAs($beneficiary)->get(route('process-instances.show', $otherInstance));
+    $response->assertForbidden();
+});

@@ -1,0 +1,452 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Mail\ApproachingDeadlineAlertMail;
+use App\Mail\UnacknowledgedStepAlertMail;
+use App\Models\StepExecution;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+
+class CheckApproachingDeadlines extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'app:check-approaching-deadlines';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Check and alert for steps nearing their deadline or unacknowledged steps.';
+
+    /**
+     * Execute the console command.
+     */
+    public function handle()
+    {
+        $this->checkUnacknowledgedSteps();
+        $this->checkApproachingDeadlines();
+    }
+
+    private function checkUnacknowledgedSteps(): void
+    {
+        $oneHourAgo = now()->subHour();
+
+        $steps = StepExecution::with(['instance.creator', 'assignee'])
+            ->where('status', 'pending')
+            ->where('created_at', '<=', $oneHourAgo)
+            ->whereNull('unacknowledged_notified_at')
+            ->get();
+
+        foreach ($steps as $step) {
+            $manager = $step->instance->creator;
+            if ($manager && $manager->email) {
+                Mail::to($manager->email)->send(new UnacknowledgedStepAlertMail($step));
+                $step->update(['unacknowledged_notified_at' => now()]);
+            }
+        }
+    }
+
+    private function checkApproachingDeadlines(): void
+    {
+        $steps = StepExecution::with(['instance.creator', 'assignee'])
+            ->whereIn('status', ['pending', 'in_progress'])
+            ->whereNotNull('deadline_at')
+            ->whereNull('deadline_notified_at')
+            ->get();
+
+        foreach ($steps as $step) {
+            $now = now();
+            $deadline = $step->deadline_at;
+            $durationHours = $step->step_snapshot_data['duration_hours'] ?? 24;
+            $totalDurationSeconds = $durationHours * 3600;
+            
+            $thresholdTime = $deadline->copy()->subSeconds($totalDurationSeconds * 0.3);
+
+            if ($now->greaterThanOrEqualTo($thresholdTime)) {
+                $executor = $step->assignee;
+                $manager = $step->instance->creator;
+
+                if ($executor && $executor->email) {
+                    Mail::to($executor->email)->send(new ApproachingDeadlineAlertMail($step));
+                }
+
+                if ($manager && $manager->email && $manager->id !== $executor?->id) {
+                    Mail::to($manager->email)->send(new ApproachingDeadlineAlertMail($step));
+                }
+
+                $step->update(['deadline_notified_at' => now()]);
+            }
+        }
+    }
+}<?php
+
+namespace App\Console\Commands;
+
+use App\Mail\StateConsistencyAlertMail;
+use App\Models\ProcessInstance;
+use App\Models\User;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+
+class CheckStateConsistency extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'app:check-state-consistency';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Check and alert for inconsistencies in process instance states.';
+
+    /**
+     * Execute the console command.
+     */
+    public function handle()
+    {
+        $instances = ProcessInstance::where('status', 'running')
+            ->whereDoesntHave('stepExecutions', function ($query) {
+                $query->whereIn('status', ['pending', 'in_progress', 'escalated']);
+            })
+            ->get();
+
+        $admins = User::role('admin')->get();
+
+        foreach ($instances as $instance) {
+            $instance->status->transitionTo(\App\States\ProcessInstance\Completed::class);
+            $instance->update(['completed_at' => now()]);
+
+            activity()
+                ->performedOn($instance)
+                ->log('completed (auto-consistency)');
+
+            foreach ($admins as $admin) {
+                if ($admin->email) {
+                    Mail::to($admin->email)->send(new StateConsistencyAlertMail($instance));
+                }
+            }
+        }
+    }
+}<?php
+
+namespace App\Mail;
+
+use App\Models\ProcessInstance;
+use App\Models\StepExecution;
+use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Queue\SerializesModels;
+
+class UnacknowledgedStepAlertMail extends Mailable
+{
+    use Queueable, SerializesModels;
+
+    public function __construct(public StepExecution $step)
+    {
+    }
+
+    public function envelope(): Envelope
+    {
+        return new Envelope(
+            subject: "Cần chú ý: Bước chưa được nhận việc - {$this->step->name}",
+        );
+    }
+
+    public function content(): Content
+    {
+        $timeWaited = $this->step->created_at->diffForHumans(null, true);
+
+        return new Content(
+            markdown: 'emails.unacknowledged-step-alert',
+            with: [
+                'url' => route('process-instances.show', $this->step->instance_id),
+                'stepName' => $this->step->name,
+                'executorName' => $this->step->assignee?->full_name ?? 'N/A',
+                'timeWaited' => $timeWaited,
+            ],
+        );
+    }
+
+    public function attachments(): array
+    {
+        return [];
+    }
+}<?php
+
+namespace App\Mail;
+
+use App\Models\ProcessInstance;
+use App\Models\StepExecution;
+use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Queue\SerializesModels;
+
+class ApproachingDeadlineAlertMail extends Mailable
+{
+    use Queueable, SerializesModels;
+
+    public function __construct(public StepExecution $step)
+    {
+    }
+
+    public function envelope(): Envelope
+    {
+        $isOverdue = $this->step->deadline_at->isPast();
+        $statusPrefix = $isOverdue ? 'Đã quá hạn' : 'Sắp đến hạn';
+
+        return new Envelope(
+            subject: "{$statusPrefix}: {$this->step->name} - {$this->step->instance->name}",
+        );
+    }
+
+    public function content(): Content
+    {
+        $isOverdue = $this->step->deadline_at->isPast();
+
+        return new Content(
+            markdown: 'emails.approaching-deadline-alert',
+            with: [
+                'url' => route('process-instances.show', $this->step->instance_id),
+                'stepName' => $this->step->name,
+                'instanceName' => $this->step->instance->name,
+                'deadline' => $this->step->deadline_at->format('d/m/Y H:i'),
+                'isOverdue' => $isOverdue,
+            ],
+        );
+    }
+
+    public function attachments(): array
+    {
+        return [];
+    }
+}<?php
+
+namespace App\Mail;
+
+use App\Models\ProcessInstance;
+use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Queue\SerializesModels;
+
+class StateConsistencyAlertMail extends Mailable
+{
+    use Queueable, SerializesModels;
+
+    public function __construct(public ProcessInstance $instance)
+    {
+    }
+
+    public function envelope(): Envelope
+    {
+        return new Envelope(
+            subject: "Hệ thống: Đã tự động đóng quy trình - {$this->instance->name}",
+        );
+    }
+
+    public function content(): Content
+    {
+        return new Content(
+            markdown: 'emails.state-consistency-alert',
+            with: [
+                'url' => route('process-instances.show', $this->instance->id),
+                'instanceName' => $this->instance->name,
+            ],
+        );
+    }
+
+    public function attachments(): array
+    {
+        return [];
+    }
+}<x-mail::message>
+# Cần chú ý: Bước chưa được nhận việc
+
+Chào bạn,
+
+Một bước trong quy trình mà bạn khởi tạo đã được giao nhưng người phụ trách chưa xác nhận nhận việc.
+
+- **Công việc:** {{ $stepName }}
+- **Người phụ trách:** {{ $executorName }}
+- **Thời gian đã chờ:** {{ $timeWaited }}
+
+Bạn có thể liên hệ nhắc nhở hoặc cấu hình lại người phụ trách nếu cần thiết.
+
+<x-mail::button :url="$url" color="primary">
+Xem chi tiết và nhắc nhở
+</x-mail::button>
+
+Cảm ơn bạn,  
+{{ config('app.name') }}
+</x-mail::message><x-mail::message>
+# {{ $isOverdue ? 'Quá hạn công việc' : 'Công việc sắp đến hạn' }}
+
+Chào bạn,
+
+Bước công việc **{{ $stepName }}** thuộc quy trình **{{ $instanceName }}** {{ $isOverdue ? 'đã quá hạn' : 'sắp đến hạn' }} xử lý.
+
+- **Hạn chót:** {{ $deadline }}
+
+Vui lòng xử lý sớm để đảm bảo tiến độ chung của quy trình.
+
+<x-mail::button :url="$url" color="primary">
+Xem chi tiết và xử lý
+</x-mail::button>
+
+Cảm ơn bạn,  
+{{ config('app.name') }}
+</x-mail::message><x-mail::message>
+# Thông báo: Đã tự động đóng quy trình
+
+Chào bạn,
+
+Quy trình **{{ $instanceName }}** đã tự động được hệ thống chuyển sang trạng thái hoàn thành.
+
+Hành động này được thực hiện vì tất cả các bước trong quy trình đã được hoàn thành, nhưng trạng thái tổng thể của quy trình vẫn chưa được cập nhật.
+
+<x-mail::button :url="$url" color="primary">
+Xem chi tiết
+</x-mail::button>
+
+Cảm ơn bạn,  
+{{ config('app.name') }}
+</x-mail::message><?php
+
+use App\Mail\ApproachingDeadlineAlertMail;
+use App\Mail\StateConsistencyAlertMail;
+use App\Mail\UnacknowledgedStepAlertMail;
+use App\Models\ProcessInstance;
+use App\Models\ProcessTemplate;
+use App\Models\StepDefinition;
+use App\Models\StepExecution;
+use App\Models\User;
+use Database\Seeders\RequiredDataSeeder;
+use Illuminate\Support\Facades\Mail;
+
+beforeEach(function () {
+    $this->seed(RequiredDataSeeder::class);
+});
+
+test('check approaching deadlines command sends unacknowledged email after 1 hour', function () {
+    Mail::fake();
+
+    $manager = User::factory()->create();
+    $manager->assignRole('manager');
+
+    $executor = User::factory()->create();
+    $executor->assignRole('executor');
+
+    $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
+    $instance = ProcessInstance::create(['template_id' => $template->id, 'name' => 'Instance', 'launched_by' => $manager->id, 'status' => 'running', 'template_snapshot_data' => []]);
+
+    $step = StepExecution::create([
+        'instance_id' => $instance->id, 'name' => 'Notification Step', 'order' => 1, 'status' => 'pending', 'assigned_to' => $executor->id, 'step_snapshot_data' => [],
+        'deadline_at' => now()->addMinutes(600)
+    ]);
+
+    test()->travelTo(now()->addMinutes(30));
+    $this->artisan('app:check-approaching-deadlines')->assertSuccessful();
+    Mail::assertNotSent(UnacknowledgedStepAlertMail::class);
+
+    test()->travelTo(now()->addMinutes(35)); // 65 mins total
+    $this->artisan('app:check-approaching-deadlines')->assertSuccessful();
+    
+    Mail::assertSent(UnacknowledgedStepAlertMail::class, function ($mail) use ($manager) {
+        return $mail->hasTo($manager->email);
+    });
+
+    // Run again, should not send second email
+    Mail::fake();
+    $this->artisan('app:check-approaching-deadlines')->assertSuccessful();
+    Mail::assertNotSent(UnacknowledgedStepAlertMail::class);
+
+    test()->travelBack();
+});
+
+test('check approaching deadlines command sends deadline email at 30 percent remaining', function () {
+    Mail::fake();
+
+    $manager = User::factory()->create();
+    $manager->assignRole('manager');
+
+    $executor = User::factory()->create();
+    $executor->assignRole('executor');
+
+    $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
+    $instance = ProcessInstance::create(['template_id' => $template->id, 'name' => 'Instance', 'launched_by' => $manager->id, 'status' => 'running', 'template_snapshot_data' => []]);
+
+    $step = StepExecution::create([
+        'instance_id' => $instance->id, 'name' => 'Notification Step', 'order' => 1, 'status' => 'in_progress', 'assigned_to' => $executor->id, 
+        'step_snapshot_data' => ['duration_hours' => 10], // 10 hours = 600 mins. 30% = 3 hours = 180 mins remaining.
+        'deadline_at' => now()->addMinutes(600)
+    ]);
+
+    test()->travelTo(now()->addMinutes(400)); // 200 mins remaining. > 180 mins.
+    $this->artisan('app:check-approaching-deadlines')->assertSuccessful();
+    Mail::assertNotSent(ApproachingDeadlineAlertMail::class);
+
+    test()->travelTo(now()->addMinutes(30)); // 430 mins passed. 170 mins remaining. < 180 mins.
+    $this->artisan('app:check-approaching-deadlines')->assertSuccessful();
+    
+    Mail::assertSent(ApproachingDeadlineAlertMail::class, function ($mail) use ($manager) {
+        return $mail->hasTo($manager->email);
+    });
+    Mail::assertSent(ApproachingDeadlineAlertMail::class, function ($mail) use ($executor) {
+        return $mail->hasTo($executor->email);
+    });
+
+    // Run again, should not send second email
+    Mail::fake();
+    $this->artisan('app:check-approaching-deadlines')->assertSuccessful();
+    Mail::assertNotSent(ApproachingDeadlineAlertMail::class);
+
+    test()->travelBack();
+});
+
+test('state consistency command completes instance', function () {
+    Mail::fake();
+
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+
+    $manager = User::factory()->create();
+    $manager->assignRole('manager');
+
+    $executor = User::factory()->create();
+    $executor->assignRole('executor');
+
+    $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
+    $instance = ProcessInstance::create(['template_id' => $template->id, 'name' => 'Instance', 'launched_by' => $manager->id, 'status' => 'running', 'template_snapshot_data' => []]);
+
+    $step = StepExecution::create([
+        'instance_id' => $instance->id, 'name' => 'Notification Step', 'order' => 1, 'status' => 'completed', 'assigned_to' => $executor->id, 'step_snapshot_data' => [],
+        'deadline_at' => now()->addMinutes(600)
+    ]);
+
+    $this->artisan('app:check-state-consistency')->assertSuccessful();
+    
+    $instance->refresh();
+    expect($instance->status->getValue())->toBe('completed');
+
+    Mail::assertSent(StateConsistencyAlertMail::class, function ($mail) use ($admin) {
+        return $mail->hasTo($admin->email);
+    });
+});

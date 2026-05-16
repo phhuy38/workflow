@@ -24,13 +24,18 @@ class ProcessInstanceController extends Controller
     {
         $this->authorize('viewAny', ProcessInstance::class);
 
-        $query = ProcessInstance::with(['template', 'creator'])->latest();
+        $query = ProcessInstance::with(['template', 'creator', 'stepExecutions'])->latest();
 
         // RBAC filtering (ADR-004)
-        if (! auth()->user()->hasRole(['admin', 'manager', 'process_designer'])) {
-            // Logic for executor/beneficiary filtering would go here
-            // For now, only privileged roles see index
-            $query->where('launched_by', auth()->id());
+        if (auth()->user()->hasRole(['admin', 'manager', 'process_designer'])) {
+            // No filter for admins/managers/designers (unless specifically requested via Dashboard)
+        } elseif (auth()->user()->hasRole('beneficiary')) {
+            $query->where('created_for', auth()->id());
+        } else {
+            $query->where(function ($q) {
+                $q->where('launched_by', auth()->id())
+                  ->orWhereHas('stepExecutions', fn($stepQ) => $stepQ->where('assigned_to', auth()->id()));
+            });
         }
 
         $instances = $query->get();
@@ -66,7 +71,7 @@ class ProcessInstanceController extends Controller
     {
         $this->authorize('view', $processInstance);
 
-        $processInstance->load(['template', 'creator', 'stepExecutions.assignee']);
+        $processInstance->load(['template', 'creator', 'stepExecutions.assignee', 'stepExecutions.finisher', 'stepExecutions.messages.sender']);
 
         $activities = [];
         $canViewFullLog = auth()->user()->can('viewFullLog', $processInstance);
@@ -84,7 +89,7 @@ class ProcessInstanceController extends Controller
         }
 
         return Inertia::render('Instances/Show', [
-            'instance' => ProcessInstanceResource::make($processInstance),
+            'instance' => ProcessInstanceResource::make($processInstance)->resolve(),
             'steps' => StepExecutionResource::collection($processInstance->stepExecutions)->resolve(),
             'activities' => $activities,
             'can' => [

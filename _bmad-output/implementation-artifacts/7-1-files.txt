@@ -1,0 +1,697 @@
+<?php
+
+namespace App\Models;
+
+// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
+use Spatie\Permission\Traits\HasRoles;
+
+class User extends Authenticatable
+{
+    /** @use HasFactory<UserFactory> */
+    use HasFactory, HasRoles, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
+    protected $fillable = [
+        'full_name',
+        'email',
+        'password',
+        'is_active',
+        'last_login_at',
+        'requires_password_reset',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'password',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at',
+        'remember_token',
+    ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
+            'password' => 'hashed',
+            'is_active' => 'boolean',
+            'two_factor_confirmed_at' => 'datetime',
+        ];
+    }
+}
+<?php
+
+namespace App\Actions\Process;
+
+use App\Models\ProcessInstance;
+use App\Models\StepExecution;
+use App\Models\User;
+use App\States\ProcessInstance\Completed as ProcessCompleted;
+use App\States\StepExecution\Completed as StepCompleted;
+use Illuminate\Support\Facades\DB;
+
+class CompleteStep
+{
+    public function __construct(private AdvanceProcessInstance $advanceProcess)
+    {
+    }
+
+    public function handle(StepExecution $step, User $user, array $data = []): void
+    {
+        DB::transaction(function () use ($step, $user, $data) {
+            $step->completed_at = now();
+            $step->completed_by = $user->id;
+            $step->completion_notes = $data['completion_notes'] ?? null;
+            // ADR-016: State transition
+            $step->status->transitionTo(StepCompleted::class);
+
+            // ADR-005: Audit Log
+            activity()
+                ->performedOn($step)
+                ->causedBy($user)
+                ->log('completed');
+
+            $this->advanceProcess->handle($step->instance, $step, $user);
+
+            DB::afterCommit(function () use ($step) {
+                event(new \App\Events\StepCompleted($step));
+                event(new \App\Events\StepExecutionUpdated($step));
+                $step->instance->refresh();
+                event(new \App\Events\ProcessInstanceUpdated($step->instance));
+            });
+        });
+    }
+}
+
+<?php
+
+namespace App\Events;
+
+use App\Models\StepExecution;
+use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
+
+class StepCompleted
+{
+    use Dispatchable, InteractsWithSockets, SerializesModels;
+
+    public function __construct(public StepExecution $step)
+    {
+    }
+}
+<?php
+
+namespace App\Listeners;
+
+use App\Events\StepCompleted;
+use App\Mail\BeneficiaryAccountCreatedMail;
+use App\Mail\BeneficiaryExistingAccountMail;
+use App\Models\User;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+
+class HandleBeneficiaryAccountCreation implements ShouldQueue
+{
+    use InteractsWithQueue;
+
+    public $tries = 3;
+    public bool $deleteWhenMissingModels = true;
+
+    public function backoff(): array
+    {
+        return [10, 30, 60];
+    }
+
+    public function viaConnection(): string
+    {
+        return config('queue.default');
+    }
+
+    public function viaQueue(): string
+    {
+        return 'notifications';
+    }
+
+    public function handle(StepCompleted $event): void
+    {
+        $step = $event->step;
+        $step->loadMissing('instance');
+        
+        $configData = $step->step_snapshot_data['config_data'] ?? [];
+        $isAccountCreationStep = $configData['is_account_creation_step'] ?? false;
+
+        if (! $isAccountCreationStep) {
+            return;
+        }
+
+        $contextData = $step->instance->context_data;
+        $beneficiaryEmail = is_array($contextData) ? ($contextData['beneficiary_email'] ?? null) : null;
+
+        if (! $beneficiaryEmail || is_array($beneficiaryEmail)) {
+            Log::warning("Account creation step {$step->id} completed, but beneficiary_email is invalid or missing.", ['context' => $contextData]);
+            return;
+        }
+
+        try {
+            $user = User::where('email', $beneficiaryEmail)->first();
+
+            if (! $user) {
+                $password = Str::password(12);
+                $user = User::create([
+                    'full_name' => "Beneficiary - {$step->instance->name}",
+                    'email' => $beneficiaryEmail,
+                    'password' => Hash::make($password),
+                    'requires_password_reset' => true,
+                    'is_active' => true,
+                ]);
+
+                $user->assignRole('beneficiary');
+
+                Mail::to($user->email)->send(new BeneficiaryAccountCreatedMail($user, $password, $step->instance));
+            } else {
+                Mail::to($user->email)->send(new BeneficiaryExistingAccountMail($user, $step->instance));
+            }
+
+            // Link instance to beneficiary
+            $step->instance->update(['created_for' => $user->id]);
+
+        } catch (\Throwable $e) {
+            Log::error("Failed to process Beneficiary Account Creation for {$beneficiaryEmail}", ['exception' => $e]);
+            throw $e;
+        }
+    }
+}
+<?php
+
+namespace App\Mail;
+
+use App\Models\ProcessInstance;
+use App\Models\User;
+use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Queue\SerializesModels;
+
+class BeneficiaryAccountCreatedMail extends Mailable
+{
+    use Queueable, SerializesModels;
+
+    public function __construct(public User $user, public string $password, public ProcessInstance $instance)
+    {
+    }
+
+    public function envelope(): Envelope
+    {
+        $cleanName = str_replace(["\r", "\n"], ' ', $this->instance->name);
+        $subjectName = \Illuminate\Support\Str::limit($cleanName, 50);
+
+        return new Envelope(
+            subject: "Tài khoản đăng nhập hệ thống: {$subjectName}",
+        );
+    }
+
+    public function content(): Content
+    {
+        return new Content(
+            markdown: 'emails.beneficiary-account-created',
+            with: [
+                'loginUrl' => route('login'),
+                'email' => $this->user->email,
+                'password' => $this->password,
+                'instanceName' => $this->instance->name,
+            ]
+        );
+    }
+
+    public function attachments(): array
+    {
+        return [];
+    }
+}
+<?php
+
+namespace App\Mail;
+
+use App\Models\ProcessInstance;
+use App\Models\User;
+use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Queue\SerializesModels;
+
+class BeneficiaryExistingAccountMail extends Mailable
+{
+    use Queueable, SerializesModels;
+
+    public function __construct(public User $user, public ProcessInstance $instance)
+    {
+    }
+
+    public function envelope(): Envelope
+    {
+        $cleanName = str_replace(["\r", "\n"], ' ', $this->instance->name);
+        $subjectName = \Illuminate\Support\Str::limit($cleanName, 50);
+
+        return new Envelope(
+            subject: "Tiến độ mới: {$subjectName}",
+        );
+    }
+
+    public function content(): Content
+    {
+        return new Content(
+            markdown: 'emails.beneficiary-existing-account',
+            with: [
+                'loginUrl' => route('process-instances.show', $this->instance->id),
+                'instanceName' => $this->instance->name,
+            ]
+        );
+    }
+
+    public function attachments(): array
+    {
+        return [];
+    }
+}
+<x-mail::message>
+# Thông tin tài khoản đăng nhập
+
+Chào bạn,
+
+Hệ thống vừa tạo một tài khoản cho bạn để theo dõi và tương tác với quy trình **{{ $instanceName }}**.
+
+Dưới đây là thông tin đăng nhập của bạn:
+
+- **Email:** {{ $email }}
+- **Mật khẩu tạm thời:** {{ $password }}
+
+*Lưu ý: Bạn sẽ được yêu cầu đổi mật khẩu trong lần đăng nhập đầu tiên.*
+
+<x-mail::button :url="$loginUrl" color="primary">
+Đăng nhập ngay
+</x-mail::button>
+
+Cảm ơn bạn,  
+{{ config('app.name') }}
+</x-mail::message><x-mail::message>
+# Cập nhật thông tin quy trình
+
+Chào bạn,
+
+Tài khoản của bạn vừa được liên kết với một quy trình mới: **{{ $instanceName }}**.
+
+Bạn có thể đăng nhập vào hệ thống để xem tiến độ chi tiết.
+
+<x-mail::button :url="$loginUrl" color="primary">
+Xem quy trình
+</x-mail::button>
+
+Cảm ơn bạn,  
+{{ config('app.name') }}
+</x-mail::message><?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class ForcePasswordReset
+{
+    /**
+     * Handle an incoming request.
+     *
+     * @param  Closure(Request): (Response)  $next
+     */
+    public function handle(Request $request, Closure $next): Response
+    {
+        if ($request->user() && 
+            $request->user()->requires_password_reset && 
+            !$request->is('force-reset-password') && 
+            !$request->is('logout')) {
+            return redirect()->route('password.force-reset');
+        }
+
+        return $next($request);
+    }
+}
+<?php
+
+use App\Http\Middleware\ApplySystemSettings;
+use App\Http\Middleware\HandleAppearance;
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\SecurityHeaders;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Support\Facades\Log;
+
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+        commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+
+        $middleware->append(SecurityHeaders::class);
+
+        $middleware->web(append: [
+            HandleAppearance::class,
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
+            \App\Http\Middleware\ForcePasswordReset::class,
+            // ApplySystemSettings must run AFTER session middleware (already registered above)
+            // to ensure session config is applied correctly. Placed last in web() append list.
+            ApplySystemSettings::class,
+        ]);
+    })
+    ->withExceptions(function (Exceptions $exceptions): void {
+        // Log all authorization violations (AC4, NFR6)
+        $exceptions->report(function (AuthorizationException $e): void {
+            $request = request();
+            Log::warning('UNAUTHORIZED_ACCESS_DENIED', [
+                'user_id' => auth()->id(),
+                'path' => $request->path(),
+                'method' => $request->method(),
+                'ip' => $request->ip(),
+                'message' => $e->getMessage(),
+            ]);
+        });
+    })->create();
+<?php
+
+use App\Http\Controllers\Admin\SystemController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ProcessInstanceController;
+use App\Http\Controllers\ProcessTemplateController;
+use App\Http\Controllers\StepDefinitionController;
+use App\Http\Controllers\StepExecutionController;
+use Illuminate\Support\Facades\Route;
+use Laravel\Fortify\Features;
+
+Route::inertia('/', 'Welcome', [
+    'canRegister' => Features::enabled(Features::registration()),
+])->name('home');
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/force-reset-password', function () {
+        if (!auth()->user()->requires_password_reset) {
+            return redirect()->route('dashboard');
+        }
+        return inertia('Auth/ForceResetPassword');
+    })->name('password.force-reset');
+
+    Route::post('/force-reset-password', function (\Illuminate\Http\Request $request) {
+        $request->validate([
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $request->user()->update([
+            'password' => \Illuminate\Support\Facades\Hash::make($request->password),
+            'requires_password_reset' => false,
+        ]);
+
+        return redirect()->route('dashboard')->with('success', 'Mật khẩu đã được cập nhật.');
+    });
+});
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('inbox', [\App\Http\Controllers\InboxController::class, 'index'])->name('inbox.index');
+
+    // Story 2.1: Template management (index, store, show) + Story 2.3 (update, destroy) + Story 2.4 (publish/unpublish)
+    Route::resource('process-templates', ProcessTemplateController::class)
+        ->only(['index', 'store', 'show', 'update', 'destroy']);
+    Route::post('process-templates/{process_template}/publish', [ProcessTemplateController::class, 'publish'])
+        ->name('process-templates.publish');
+    Route::post('process-templates/{process_template}/unpublish', [ProcessTemplateController::class, 'unpublish'])
+        ->name('process-templates.unpublish');
+
+    // Story 2.2: Step definition management
+    Route::resource('step-definitions', StepDefinitionController::class)
+        ->only(['store', 'update', 'destroy']);
+    Route::patch('step-definitions/{step_definition}/reorder', [StepDefinitionController::class, 'reorder'])
+        ->name('step-definitions.reorder');
+
+    // Story 3.1: Process instance execution
+    Route::resource('process-instances', ProcessInstanceController::class)
+        ->only(['index', 'create', 'store', 'show']);
+    Route::post('process-instances/{process_instance}/cancel', [ProcessInstanceController::class, 'cancel'])
+        ->name('process-instances.cancel');
+    // Story 3.2 & 3.4: Step execution interactions
+    Route::post('step-executions/{step_execution}/acknowledge', [StepExecutionController::class, 'acknowledge'])
+        ->name('step-executions.acknowledge');
+    Route::post('step-executions/{step_execution}/complete', [StepExecutionController::class, 'complete'])
+        ->name('step-executions.complete');
+    Route::post('step-executions/{step_execution}/override', [StepExecutionController::class, 'override'])
+        ->name('step-executions.override');
+    Route::post('step-executions/{step_execution}/messages', [\App\Http\Controllers\StepMessageController::class, 'store'])
+        ->name('step-messages.store');
+});
+
+Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+    Route::resource('users', UserController::class);
+    Route::post('users/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
+    Route::post('users/{user}/reactivate', [UserController::class, 'reactivate'])->name('users.reactivate');
+    Route::post('users/{user}/assign-designer', [UserController::class, 'assignDesigner'])->name('users.assign-designer');
+    Route::post('users/{user}/revoke-designer', [UserController::class, 'revokeDesigner'])->name('users.revoke-designer');
+
+    // System Settings
+    Route::get('system', [SystemController::class, 'index'])->name('system.index');
+    Route::put('system', [SystemController::class, 'update'])->name('system.update');
+    // Rate limit test-email to prevent SMTP server abuse
+    Route::post('system/test-email', [SystemController::class, 'testEmail'])
+        ->middleware('throttle:5,1') // 5 requests per minute
+        ->name('system.test-email');
+});
+
+require __DIR__.'/settings.php';
+<script setup lang="ts">
+import { Head, useForm } from '@inertiajs/vue3';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+const form = useForm({
+    password: '',
+    password_confirmation: '',
+});
+
+const submit = () => {
+    form.post(route('password.force-reset'), {
+        onFinish: () => form.reset('password', 'password_confirmation'),
+    });
+};
+</script>
+
+<template>
+    <div class="min-h-screen flex items-center justify-center bg-muted/40 p-4">
+        <Head title="Cập nhật mật khẩu" />
+
+        <Card class="w-full max-w-md">
+            <CardHeader>
+                <CardTitle>Chào mừng đến với hệ thống</CardTitle>
+                <CardDescription>
+                    Vì lý do bảo mật, bạn cần thay đổi mật khẩu mặc định trước khi bắt đầu sử dụng.
+                </CardDescription>
+            </CardHeader>
+
+            <form @submit.prevent="submit">
+                <CardContent class="space-y-4">
+                    <div class="space-y-2">
+                        <Label for="password">Mật khẩu mới</Label>
+                        <Input
+                            id="password"
+                            v-model="form.password"
+                            type="password"
+                            required
+                            autocomplete="new-password"
+                            :class="{ 'border-destructive': form.errors.password }"
+                        />
+                        <p v-if="form.errors.password" class="text-sm text-destructive">
+                            {{ form.errors.password }}
+                        </p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label for="password_confirmation">Xác nhận mật khẩu mới</Label>
+                        <Input
+                            id="password_confirmation"
+                            v-model="form.password_confirmation"
+                            type="password"
+                            required
+                            autocomplete="new-password"
+                            :class="{ 'border-destructive': form.errors.password_confirmation }"
+                        />
+                        <p v-if="form.errors.password_confirmation" class="text-sm text-destructive">
+                            {{ form.errors.password_confirmation }}
+                        </p>
+                    </div>
+                </CardContent>
+
+                <CardFooter>
+                    <Button type="submit" class="w-full" :disabled="form.processing">
+                        Cập nhật mật khẩu
+                    </Button>
+                </CardFooter>
+            </form>
+        </Card>
+    </div>
+</template>
+<?php
+
+use App\Events\StepCompleted;
+use App\Mail\BeneficiaryAccountCreatedMail;
+use App\Mail\BeneficiaryExistingAccountMail;
+use App\Models\ProcessInstance;
+use App\Models\ProcessTemplate;
+use App\Models\StepExecution;
+use App\Models\User;
+use Database\Seeders\RequiredDataSeeder;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use function Pest\Laravel\actingAs;
+
+beforeEach(function () {
+    $this->seed(RequiredDataSeeder::class);
+});
+
+test('it creates a new beneficiary user and sends welcome mail', function () {
+    Mail::fake();
+
+    $manager = User::factory()->create();
+    $manager->assignRole('manager');
+
+    $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
+    $instance = ProcessInstance::create([
+        'template_id' => $template->id,
+        'name' => 'Instance',
+        'launched_by' => $manager->id,
+        'status' => 'running',
+        'template_snapshot_data' => [],
+        'context_data' => ['beneficiary_email' => 'newuser@example.com']
+    ]);
+
+    $step = StepExecution::create([
+        'instance_id' => $instance->id,
+        'name' => 'Create Account Step',
+        'order' => 1,
+        'status' => 'completed',
+        'assigned_to' => $manager->id,
+        'step_snapshot_data' => ['config_data' => ['is_account_creation_step' => true]],
+        'deadline_at' => now()->addMinutes(60)
+    ]);
+
+    $event = new StepCompleted($step);
+    $listener = new \App\Listeners\HandleBeneficiaryAccountCreation();
+    $listener->handle($event);
+
+    $user = User::where('email', 'newuser@example.com')->first();
+    expect($user)->not->toBeNull();
+    expect($user->hasRole('beneficiary'))->toBeTrue();
+    expect($user->requires_password_reset)->toBe(1);
+
+    $instance->refresh();
+    expect($instance->created_for)->toBe($user->id);
+
+    Mail::assertSent(BeneficiaryAccountCreatedMail::class, function ($mail) {
+        return $mail->hasTo('newuser@example.com');
+    });
+});
+
+test('it links existing beneficiary user and sends existing account mail', function () {
+    Mail::fake();
+
+    $manager = User::factory()->create();
+    $manager->assignRole('manager');
+
+    $existingUser = User::factory()->create(['email' => 'existing@example.com']);
+    $existingUser->assignRole('beneficiary');
+
+    $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
+    $instance = ProcessInstance::create([
+        'template_id' => $template->id,
+        'name' => 'Instance',
+        'launched_by' => $manager->id,
+        'status' => 'running',
+        'template_snapshot_data' => [],
+        'context_data' => ['beneficiary_email' => 'existing@example.com']
+    ]);
+
+    $step = StepExecution::create([
+        'instance_id' => $instance->id,
+        'name' => 'Create Account Step',
+        'order' => 1,
+        'status' => 'completed',
+        'assigned_to' => $manager->id,
+        'step_snapshot_data' => ['config_data' => ['is_account_creation_step' => true]],
+        'deadline_at' => now()->addMinutes(60)
+    ]);
+
+    $event = new StepCompleted($step);
+    $listener = new \App\Listeners\HandleBeneficiaryAccountCreation();
+    $listener->handle($event);
+
+    $instance->refresh();
+    expect($instance->created_for)->toBe($existingUser->id);
+
+    Mail::assertSent(BeneficiaryExistingAccountMail::class, function ($mail) {
+        return $mail->hasTo('existing@example.com');
+    });
+});
+
+test('force password reset middleware intercepts correctly', function () {
+    $user = User::factory()->create(['requires_password_reset' => true]);
+
+    $response = actingAs($user)->get(route('dashboard'));
+    $response->assertRedirect(route('password.force-reset'));
+
+    $response = actingAs($user)->get(route('password.force-reset'));
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page->component('Auth/ForceResetPassword'));
+
+    $response = actingAs($user)->post(route('password.force-reset'), [
+        'password' => 'newpassword123',
+        'password_confirmation' => 'newpassword123',
+    ]);
+
+    $response->assertRedirect(route('dashboard'));
+
+    $user->refresh();
+    expect($user->requires_password_reset)->toBe(0);
+    expect(Hash::check('newpassword123', $user->password))->toBeTrue();
+});

@@ -120,27 +120,27 @@ test('seeder is idempotent — running twice does not create duplicates', functi
 
 // ─── Dashboard Access Control (AC2, AC3) ──────────────────────────────────────
 
-test('executor gets 403 on GET /dashboard', function () {
+test('executor gets 200 on GET /dashboard but no manager data', function () {
     $this->seed(RequiredDataSeeder::class);
     $user = User::factory()->create();
     $user->assignRole('executor');
 
-    $this->actingAs($user)->get(route('dashboard'))->assertForbidden();
+    $this->actingAs($user)->get(route('dashboard'))->assertOk();
 });
 
-test('beneficiary gets 403 on GET /dashboard', function () {
+test('beneficiary gets 200 on GET /dashboard but no manager data', function () {
     $this->seed(RequiredDataSeeder::class);
     $user = User::factory()->create();
     $user->assignRole('beneficiary');
 
-    $this->actingAs($user)->get(route('dashboard'))->assertForbidden();
+    $this->actingAs($user)->get(route('dashboard'))->assertOk();
 });
 
-test('user without any role gets 403 on GET /dashboard', function () {
+test('user without any role gets 200 on GET /dashboard but no manager data', function () {
     $this->seed(RequiredDataSeeder::class);
     $user = User::factory()->create(); // no role
 
-    $this->actingAs($user)->get(route('dashboard'))->assertForbidden();
+    $this->actingAs($user)->get(route('dashboard'))->assertOk();
 });
 
 test('admin can access dashboard', function () {

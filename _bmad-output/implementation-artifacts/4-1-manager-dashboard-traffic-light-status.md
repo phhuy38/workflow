@@ -1,6 +1,6 @@
 # Story 4.1: Manager Dashboard Traffic Light Status (FR16)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -20,21 +20,21 @@ so that I immediately know which processes need my attention without reading eve
 
 ## Tasks / Subtasks
 
-- [ ] **Domain Logic & Data Retrieval**
-  - [ ] Xây dựng logic tính toán trạng thái Traffic Light cho một `ProcessInstance` dựa trên trạng thái các `StepExecution` bên trong nó.
+- [x] **Domain Logic & Data Retrieval**
+  - [x] Xây dựng logic tính toán trạng thái Traffic Light cho một `ProcessInstance` dựa trên trạng thái các `StepExecution` bên trong nó.
     - Logic tính deadline: so sánh `deadline_at` của bước đang active (`pending` hoặc `in_progress`). Nếu quá -> Đỏ. Nếu còn <= 30% -> Vàng.
     - Logic tính SLA acknowledge: Nếu bước đang `pending` và quá 1h kể từ lúc tạo (`created_at` hoặc lúc được kích hoạt) -> Vàng.
     - Còn lại -> Xanh.
-  - [ ] Cập nhật `DashboardController` hoặc `ProcessInstanceController` để trả về dữ liệu Dashboard cho Manager, gộp logic tính trạng thái vào Query hoặc Resource.
-  - [ ] Sắp xếp dữ liệu trả về theo mức độ nghiêm trọng (Đỏ -> Vàng -> Xanh).
-- [ ] **Frontend: Dashboard UI (Vue/Inertia)**
-  - [ ] Cập nhật trang `resources/js/pages/Dashboard.vue` cho Manager.
-  - [ ] Thiết kế UI cho bảng điều khiển (cards hoặc grouped lists) hiển thị rõ ràng 3 trạng thái Đỏ, Vàng, Xanh.
-  - [ ] Xây dựng Empty State với nút "Khởi động quy trình".
-- [ ] **Testing**
-  - [ ] Viết Unit tests cho logic tính Traffic Light status.
-  - [ ] Viết Feature tests kiểm tra việc dashboard hiển thị đúng danh sách và sắp xếp đúng mức độ ưu tiên.
-  - [ ] Viết Security tests đảm bảo Executor/Beneficiary không truy cập được Manager Dashboard.
+  - [x] Cập nhật `DashboardController` hoặc `ProcessInstanceController` để trả về dữ liệu Dashboard cho Manager, gộp logic tính trạng thái vào Query hoặc Resource.
+  - [x] Sắp xếp dữ liệu trả về theo mức độ nghiêm trọng (Đỏ -> Vàng -> Xanh).
+- [x] **Frontend: Dashboard UI (Vue/Inertia)**
+  - [x] Cập nhật trang `resources/js/pages/Dashboard.vue` cho Manager.
+  - [x] Thiết kế UI cho bảng điều khiển (cards hoặc grouped lists) hiển thị rõ ràng 3 trạng thái Đỏ, Vàng, Xanh.
+  - [x] Xây dựng Empty State với nút "Khởi động quy trình".
+- [x] **Testing**
+  - [x] Viết Unit tests cho logic tính Traffic Light status.
+  - [x] Viết Feature tests kiểm tra việc dashboard hiển thị đúng danh sách và sắp xếp đúng mức độ ưu tiên.
+  - [x] Viết Security tests đảm bảo Executor/Beneficiary không truy cập được Manager Dashboard.
 
 ## Dev Notes
 
@@ -56,10 +56,13 @@ so that I immediately know which processes need my attention without reading eve
 Gemini 2.0 Flash
 
 ### Debug Log References
-N/A
+- Fixed absolute value of Carbon diffInMinutes returning negative.
 
 ### Completion Notes List
-N/A
+- Implemented `InstanceStatusCalculator` to calculate the traffic light status correctly.
+- Added extensive tests in `TrafficLightStatusTest` for the status calculation logic including edge cases like `pending` over 1 hour.
+- Modified `DashboardController` to get the list of active instances, append their traffic light status, sort them properly, and abort 403 for non-privileged users.
+- Redesigned `Dashboard.vue` to show a grouped card view of instances highlighting their status with appropriate colors and icons.
 
 ### File List
 - app/Services/InstanceStatusCalculator.php (new)
@@ -67,3 +70,21 @@ N/A
 - app/Http/Resources/ProcessInstanceResource.php (update)
 - resources/js/pages/Dashboard.vue (update)
 - tests/Feature/DashboardTest.php (update)
+- tests/Feature/TrafficLightStatusTest.php (new)
+
+### Review Findings
+
+- [x] [Review][Patch] Bỏ abort(403) Controller / Mâu thuẫn AC4 — Xóa abort(403) ở Controller để Frontend hiển thị Dashboard riêng cho từng role (UI non-manager).
+- [x] [Review][Patch] Hiệu suất truy vấn và sắp xếp ở Application Level — Tải toàn bộ instance rồi sắp xếp bằng `usort` trong DashboardController, cần đưa xuống DB/Query.
+- [x] [Review][Patch] Hardcode Role Authorization — Xóa `authorize('dashboard.view')` thay bằng `hasRole()` trong DashboardController.
+- [x] [Review][Patch] N+1 Service Instantiation — Gọi `app(InstanceStatusCalculator::class)` lặp vòng trong `ProcessInstanceResource::toArray`.
+- [x] [Review][Patch] Crash vì Null Deadline — `Carbon::parse($activeStep->deadline_at)` trong InstanceStatusCalculator không kiểm tra null, dẫn đến lỗi nếu deadline_at bị null.
+- [x] [Review][Patch] Xác thực bằng cách đoán mò — Frontend Dashboard.vue đoán quyền bằng cách kiểm tra `page.props.instances !== undefined`.
+- [x] [Review][Patch] UI thiếu phân nhóm trực quan (AC2) — Dashboard.vue hiển thị flat list CSS Grid thay vì chia nhóm (Grouped list) rõ ràng.
+- [x] [Review][Patch] Rò rỉ thời gian Test — Dùng `Carbon::setTestNow()` trong `DashboardTest.php` thay vì helper an toàn `$this->travelTo()`.
+- [x] [Review][Patch] Hardcode ngôn ngữ — Sử dụng chuỗi thông báo lỗi cứng tiếng Việt trong `abort(403)`.
+- [x] [Review][Patch] Cảnh báo Undefined Array Key — Sắp xếp `usort` thiếu fallback cho `$order[$a['traffic_light_status']]`.
+- [x] [Review][Patch] Tải dư thừa dữ liệu StepExecution — `with(['stepExecutions'])` tải toàn bộ lịch sử step thay vì dùng closure lọc các bước active.
+- [x] [Review][Defer] Rủi ro Full Table Scan — `orWhereHas` trên `step_executions` trong `ProcessInstanceController`. — deferred, pre-existing (ngoài phạm vi story)
+- [x] [Review][Defer] Magic Strings — Sử dụng chuỗi trạng thái cứng 'running', 'pending' thay vì Enum. — deferred, project convention issue
+- [x] [Review][Defer] Lỗi Data Flow Inertia — Lấy dữ liệu qua `usePage().props.template?.name` thay vì `defineProps` trong Show.vue. — deferred, pre-existing

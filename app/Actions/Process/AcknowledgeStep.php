@@ -21,6 +21,9 @@ class AcknowledgeStep
                 ->performedOn($step)
                 ->causedBy($user)
                 ->log('acknowledged');
+
+            event(new \App\Events\StepExecutionUpdated($step));
+            event(new \App\Events\ProcessInstanceUpdated($step->instance));
         });
     }
 }

@@ -20,8 +20,15 @@ class StepExecutionController extends Controller
         return redirect()->back()->with('success', 'Đã xác nhận nhận việc.');
     }
 
-    public function complete(Request $request, StepExecution $stepExecution, CompleteStep $action): RedirectResponse
+    public function complete(Request $request, StepExecution $stepExecution, CompleteStep $action, AcknowledgeStep $acknowledgeAction): RedirectResponse
     {
+        // Auto-acknowledge if pending (FR23)
+        if ($stepExecution->status->getValue() === 'pending') {
+            $this->authorize('acknowledge', $stepExecution);
+            $acknowledgeAction->handle($stepExecution, auth()->user());
+            $stepExecution->refresh();
+        }
+
         $this->authorize('complete', $stepExecution);
 
         $validated = $request->validate([
