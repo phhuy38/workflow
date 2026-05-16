@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid, LayoutTemplate, Settings, Users, Inbox } from 'lucide-vue-next';
+import {
+    BookOpen,
+    FolderGit2,
+    LayoutGrid,
+    LayoutTemplate,
+    Settings,
+    Users,
+    Inbox,
+} from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
@@ -31,7 +39,7 @@ const mainNavItems = computed((): NavItem[] => {
 
     if (can('view_all_instances')) {
         items.push({
-            title: 'Dashboard',
+            title: 'Bảng điều khiển',
             href: dashboard(),
             icon: LayoutGrid,
         });
@@ -39,7 +47,7 @@ const mainNavItems = computed((): NavItem[] => {
 
     if (can('complete_assigned_steps')) {
         items.push({
-            title: 'Inbox',
+            title: 'Hộp thư',
             href: inboxIndex().url,
             icon: BookOpen, // Or another icon like Inbox if available, using BookOpen for now or lucide Inbox
         });
@@ -47,7 +55,7 @@ const mainNavItems = computed((): NavItem[] => {
 
     if (can('manage_templates')) {
         items.push({
-            title: 'Templates',
+            title: 'Mẫu quy trình',
             href: templatesIndex().url,
             icon: LayoutTemplate,
         });
@@ -55,7 +63,7 @@ const mainNavItems = computed((): NavItem[] => {
 
     if (can('manage_users')) {
         items.push({
-            title: 'User Management',
+            title: 'Quản lý người dùng',
             href: usersIndex().url,
             icon: Users,
         });
@@ -63,7 +71,7 @@ const mainNavItems = computed((): NavItem[] => {
 
     if (can('manage_system')) {
         items.push({
-            title: 'System Settings',
+            title: 'Cài đặt hệ thống',
             href: systemIndex().url,
             icon: Settings,
         });
@@ -77,12 +85,12 @@ const mainNavItems = computed((): NavItem[] => {
 
 const footerNavItems: NavItem[] = [
     {
-        title: 'Repository',
+        title: 'Mã nguồn',
         href: 'https://github.com/laravel/vue-starter-kit',
         icon: FolderGit2,
     },
     {
-        title: 'Documentation',
+        title: 'Tài liệu',
         href: 'https://laravel.com/docs/starter-kits#vue',
         icon: BookOpen,
     },

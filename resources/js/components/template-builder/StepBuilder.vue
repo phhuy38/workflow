@@ -42,8 +42,8 @@ function cancelEdit() {
 
 async function moveStep(step: StepDefinition, direction: 'up' | 'down') {
     if (isReordering.value) {
-return;
-}
+        return;
+    }
 
     const newOrder = direction === 'up' ? step.order - 1 : step.order + 1;
 
@@ -51,8 +51,8 @@ return;
     const other = steps.value.find((s) => s.order === newOrder);
 
     if (!other) {
-return;
-}
+        return;
+    }
 
     isReordering.value = true;
     const oldOrder = step.order;
@@ -62,9 +62,12 @@ return;
     steps.value = [...steps.value].sort((a, b) => a.order - b.order);
 
     try {
-        const response = await axios.patch(stepReorder({ step_definition: step.id }).url, {
-            new_order: newOrder,
-        });
+        const response = await axios.patch(
+            stepReorder({ step_definition: step.id }).url,
+            {
+                new_order: newOrder,
+            },
+        );
         steps.value = response.data.steps;
     } catch {
         // Revert optimistic update
@@ -83,8 +86,13 @@ return;
         <div v-if="steps.length > 0" class="flex flex-col gap-3">
             <template v-for="step in steps" :key="step.id">
                 <!-- Edit form inline -->
-                <div v-if="editingStep?.id === step.id" class="rounded-md border p-4">
-                    <p class="mb-3 text-sm font-medium">Chỉnh sửa bước {{ step.order }}</p>
+                <div
+                    v-if="editingStep?.id === step.id"
+                    class="rounded-md border p-4"
+                >
+                    <p class="mb-3 text-sm font-medium">
+                        Chỉnh sửa bước {{ step.order }}
+                    </p>
                     <StepForm
                         :template-id="templateId"
                         :step="step"
@@ -103,7 +111,11 @@ return;
                     :can-edit="canEdit"
                     :is-new="newStepIds.has(step.id)"
                     @edit="startEdit"
-                    @delete="$inertia.delete(`/step-definitions/${step.id}`, { preserveScroll: true })"
+                    @delete="
+                        $inertia.delete(`/step-definitions/${step.id}`, {
+                            preserveScroll: true,
+                        })
+                    "
                     @move-up="moveStep(step, 'up')"
                     @move-down="moveStep(step, 'down')"
                 />
@@ -112,7 +124,9 @@ return;
 
         <!-- Empty state -->
         <div v-else class="rounded-md border-2 border-dashed p-8 text-center">
-            <p class="text-muted-foreground text-sm">Chưa có bước nào. Thêm bước đầu tiên bên dưới.</p>
+            <p class="text-sm text-muted-foreground">
+                Chưa có bước nào. Thêm bước đầu tiên bên dưới.
+            </p>
         </div>
 
         <!-- Add step form -->
@@ -131,7 +145,10 @@ return;
                 variant="outline"
                 class="w-full"
                 data-test="add-step-button"
-                @click="showAddForm = true; editingStep = null"
+                @click="
+                    showAddForm = true;
+                    editingStep = null;
+                "
             >
                 <Plus class="mr-2 h-4 w-4" />
                 Thêm bước

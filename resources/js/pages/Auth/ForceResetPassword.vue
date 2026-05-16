@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -18,14 +25,15 @@ const submit = () => {
 </script>
 
 <template>
-    <div class="min-h-screen flex items-center justify-center bg-muted/40 p-4">
+    <div class="flex min-h-screen items-center justify-center bg-muted/40 p-4">
         <Head title="Cập nhật mật khẩu" />
 
         <Card class="w-full max-w-md">
             <CardHeader>
                 <CardTitle>Chào mừng đến với hệ thống</CardTitle>
                 <CardDescription>
-                    Vì lý do bảo mật, bạn cần thay đổi mật khẩu mặc định trước khi bắt đầu sử dụng.
+                    Vì lý do bảo mật, bạn cần thay đổi mật khẩu mặc định trước
+                    khi bắt đầu sử dụng.
                 </CardDescription>
             </CardHeader>
 
@@ -39,31 +47,48 @@ const submit = () => {
                             type="password"
                             required
                             autocomplete="new-password"
-                            :class="{ 'border-destructive': form.errors.password }"
+                            :class="{
+                                'border-destructive': form.errors.password,
+                            }"
                         />
-                        <p v-if="form.errors.password" class="text-sm text-destructive">
+                        <p
+                            v-if="form.errors.password"
+                            class="text-sm text-destructive"
+                        >
                             {{ form.errors.password }}
                         </p>
                     </div>
 
                     <div class="space-y-2">
-                        <Label for="password_confirmation">Xác nhận mật khẩu mới</Label>
+                        <Label for="password_confirmation"
+                            >Xác nhận mật khẩu mới</Label
+                        >
                         <Input
                             id="password_confirmation"
                             v-model="form.password_confirmation"
                             type="password"
                             required
                             autocomplete="new-password"
-                            :class="{ 'border-destructive': form.errors.password_confirmation }"
+                            :class="{
+                                'border-destructive':
+                                    form.errors.password_confirmation,
+                            }"
                         />
-                        <p v-if="form.errors.password_confirmation" class="text-sm text-destructive">
+                        <p
+                            v-if="form.errors.password_confirmation"
+                            class="text-sm text-destructive"
+                        >
                             {{ form.errors.password_confirmation }}
                         </p>
                     </div>
                 </CardContent>
 
                 <CardFooter>
-                    <Button type="submit" class="w-full" :disabled="form.processing">
+                    <Button
+                        type="submit"
+                        class="w-full"
+                        :disabled="form.processing"
+                    >
                         Cập nhật mật khẩu
                     </Button>
                 </CardFooter>

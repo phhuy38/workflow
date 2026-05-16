@@ -53,6 +53,7 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 ## Frontend Bundling
 
 - If the user doesn't see a frontend change reflected in the UI, it could mean they need to run `npm run build`, `npm run dev`, or `composer run dev`. Ask them.
+- **MANDATORY**: Whenever you (the AI model) modify any frontend files (Vue components, JavaScript, CSS, etc.), you MUST automatically run the code formatter and frontend build commands (e.g., `npm run format` and `npm run build`). Remember to execute these according to the Execution Environment rules (inside the laradock container).
 
 ## Documentation Files
 
@@ -195,7 +196,7 @@ Use Wayfinder to generate TypeScript functions for Laravel routes. Import from `
 
 # Laravel Pint Code Formatter
 
-- If you have modified any PHP files, you must run `vendor/bin/pint --dirty --format agent` before finalizing changes to ensure your code matches the project's expected style.
+- **MANDATORY**: Whenever you (the AI model) modify any PHP files, you MUST automatically run the code formatter: `vendor/bin/pint --dirty --format agent` before finalizing changes to ensure your code matches the project's expected style. Remember to execute this according to the Execution Environment rules (inside the laradock container).
 - Do not run `vendor/bin/pint --test --format agent`, simply run `vendor/bin/pint --format agent` to fix any formatting issues.
 
 === pest/core rules ===

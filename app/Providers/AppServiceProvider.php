@@ -10,6 +10,7 @@ use App\Policies\UserPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -36,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configureRateLimiters();
         $this->configurePolicies();
+        JsonResource::withoutWrapping();
         Event::listen(Login::class, UpdateLastLoginAt::class);
         Event::listen(UserDeactivated::class, ReassignOpenStepsOnUserDeactivated::class);
     }

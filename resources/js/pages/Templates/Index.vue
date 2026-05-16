@@ -14,7 +14,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { index as templatesIndex, store as templatesStore, show as templatesShow } from '@/routes/process-templates';
+import {
+    index as templatesIndex,
+    store as templatesStore,
+    show as templatesShow,
+} from '@/routes/process-templates';
 import type { ProcessTemplate } from '@/types';
 
 interface Props {
@@ -50,8 +54,8 @@ function getFlash(key: string): string | null {
     const flash = page.props.flash as Record<string, unknown> | undefined;
 
     if (!flash || typeof flash[key] !== 'string') {
-return null;
-}
+        return null;
+    }
 
     return flash[key];
 }
@@ -76,7 +80,7 @@ function formatDate(isoString: string): string {
         <!-- Flash success message -->
         <div
             v-if="getFlash('success')"
-            class="rounded-md bg-green-50 p-4 text-sm text-green-700 border border-green-200"
+            class="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-700"
         >
             {{ getFlash('success') }}
         </div>
@@ -86,14 +90,19 @@ function formatDate(isoString: string): string {
             <h2 class="mb-4 text-lg font-medium">Tạo template mới</h2>
             <form @submit.prevent="submitCreate" class="flex flex-col gap-4">
                 <div class="flex flex-col gap-1.5">
-                    <Label for="template-name">Tên template <span class="text-destructive">*</span></Label>
+                    <Label for="template-name"
+                        >Tên template
+                        <span class="text-destructive">*</span></Label
+                    >
                     <Input
                         id="template-name"
                         v-model="form.name"
                         placeholder="Nhập tên template..."
                         :class="{ 'border-destructive': form.errors.name }"
                     />
-                    <p v-if="form.errors.name" class="text-destructive text-sm">{{ form.errors.name }}</p>
+                    <p v-if="form.errors.name" class="text-sm text-destructive">
+                        {{ form.errors.name }}
+                    </p>
                 </div>
 
                 <div class="flex flex-col gap-1.5">
@@ -104,7 +113,12 @@ function formatDate(isoString: string): string {
                         placeholder="Mô tả ngắn về quy trình này..."
                         rows="3"
                     />
-                    <p v-if="form.errors.description" class="text-destructive text-sm">{{ form.errors.description }}</p>
+                    <p
+                        v-if="form.errors.description"
+                        class="text-sm text-destructive"
+                    >
+                        {{ form.errors.description }}
+                    </p>
                 </div>
 
                 <div>
@@ -129,18 +143,27 @@ function formatDate(isoString: string): string {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    <TableRow
-                        v-for="template in templates"
-                        :key="template.id"
-                    >
-                        <TableCell class="font-medium">{{ template.name }}</TableCell>
+                    <TableRow v-for="template in templates" :key="template.id">
+                        <TableCell class="font-medium">{{
+                            template.name
+                        }}</TableCell>
                         <TableCell>
-                            <Badge :variant="template.is_published ? 'default' : 'secondary'">
-                                {{ template.is_published ? 'Published' : 'Draft' }}
+                            <Badge
+                                :variant="
+                                    template.is_published
+                                        ? 'default'
+                                        : 'secondary'
+                                "
+                            >
+                                {{
+                                    template.is_published
+                                        ? 'Published'
+                                        : 'Draft'
+                                }}
                             </Badge>
                         </TableCell>
                         <TableCell>{{ template.step_count }}</TableCell>
-                        <TableCell class="text-muted-foreground text-sm">
+                        <TableCell class="text-sm text-muted-foreground">
                             {{ formatDate(template.created_at) }}
                         </TableCell>
                         <TableCell class="text-right">
@@ -148,15 +171,23 @@ function formatDate(isoString: string): string {
                                 variant="outline"
                                 size="sm"
                                 as="a"
-                                :href="templatesShow({ process_template: template.id }).url"
+                                :href="
+                                    templatesShow({
+                                        process_template: template.id,
+                                    }).url
+                                "
                             >
                                 Xem
                             </Button>
                         </TableCell>
                     </TableRow>
                     <TableRow v-if="templates.length === 0">
-                        <TableCell colspan="5" class="text-muted-foreground py-8 text-center">
-                            Chưa có template nào. Tạo template đầu tiên bên trên.
+                        <TableCell
+                            colspan="5"
+                            class="py-8 text-center text-muted-foreground"
+                        >
+                            Chưa có template nào. Tạo template đầu tiên bên
+                            trên.
                         </TableCell>
                     </TableRow>
                 </TableBody>

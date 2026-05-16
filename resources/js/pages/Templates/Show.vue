@@ -6,7 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { index as templatesIndex, show as templatesShow, update as templatesUpdate, destroy as templatesDestroy } from '@/routes/process-templates';
+import {
+    index as templatesIndex,
+    show as templatesShow,
+    update as templatesUpdate,
+    destroy as templatesDestroy,
+} from '@/routes/process-templates';
 import type { ProcessTemplate } from '@/types';
 import type { StepDefinition } from '@/types/step';
 import { ref } from 'vue';
@@ -32,11 +37,14 @@ const metadataForm = useForm({
 });
 
 function submitMetadataUpdate() {
-    metadataForm.patch(templatesUpdate({ process_template: props.template.id }).url, {
-        onSuccess: () => {
-            isEditingMetadata.value = false;
+    metadataForm.patch(
+        templatesUpdate({ process_template: props.template.id }).url,
+        {
+            onSuccess: () => {
+                isEditingMetadata.value = false;
+            },
         },
-    });
+    );
 }
 
 function cancelMetadataEdit() {
@@ -45,22 +53,36 @@ function cancelMetadataEdit() {
 }
 
 function deleteTemplate() {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa template này? Hành động này không thể hoàn tác.')) {
+    if (
+        !window.confirm(
+            'Bạn có chắc chắn muốn xóa template này? Hành động này không thể hoàn tác.',
+        )
+    ) {
         return;
     }
 
-    router.delete(templatesDestroy({ process_template: props.template.id }).url);
+    router.delete(
+        templatesDestroy({ process_template: props.template.id }).url,
+    );
 }
 
 function publishTemplate() {
-    if (!window.confirm('Bạn có chắc chắn muốn xuất bản template này? Manager sẽ có thể khởi chạy quy trình từ phiên bản này.')) {
+    if (
+        !window.confirm(
+            'Bạn có chắc chắn muốn xuất bản template này? Manager sẽ có thể khởi chạy quy trình từ phiên bản này.',
+        )
+    ) {
         return;
     }
     router.post(route('process-templates.publish', props.template.id));
 }
 
 function unpublishTemplate() {
-    if (!window.confirm('Bạn có chắc chắn muốn chuyển template này về bản nháp? Manager sẽ không thể khởi tạo quy trình mới từ template này.')) {
+    if (
+        !window.confirm(
+            'Bạn có chắc chắn muốn chuyển template này về bản nháp? Manager sẽ không thể khởi tạo quy trình mới từ template này.',
+        )
+    ) {
         return;
     }
     router.post(route('process-templates.unpublish', props.template.id));
@@ -89,8 +111,8 @@ function getFlash(key: string): string | null {
     const flash = page.props.flash as Record<string, unknown> | undefined;
 
     if (!flash || typeof flash[key] !== 'string') {
-return null;
-}
+        return null;
+    }
 
     return flash[key];
 }
@@ -128,56 +150,104 @@ function formatDate(isoString: string): string {
 
         <!-- Template header -->
         <div class="flex items-start justify-between gap-4">
-            <div v-if="!isEditingMetadata" class="flex flex-col gap-1 w-full">
+            <div v-if="!isEditingMetadata" class="flex w-full flex-col gap-1">
                 <div class="flex items-center gap-3">
                     <h1 class="text-2xl font-semibold">{{ template.name }}</h1>
-                    <Button v-if="can.update" variant="ghost" size="sm" @click="isEditingMetadata = true">
+                    <Button
+                        v-if="can.update"
+                        variant="ghost"
+                        size="sm"
+                        @click="isEditingMetadata = true"
+                    >
                         Sửa
                     </Button>
                 </div>
-                <p v-if="template.description" class="text-muted-foreground text-sm">
+                <p
+                    v-if="template.description"
+                    class="text-sm text-muted-foreground"
+                >
                     {{ template.description }}
                 </p>
             </div>
 
             <!-- Metadata Edit Form -->
-            <div v-else class="flex flex-col gap-4 w-full rounded-md border p-4 bg-muted/30">
+            <div
+                v-else
+                class="flex w-full flex-col gap-4 rounded-md border bg-muted/30 p-4"
+            >
                 <div class="flex flex-col gap-2">
-                    <Input v-model="metadataForm.name" placeholder="Tên template..." />
-                    <p v-if="metadataForm.errors.name" class="text-destructive text-sm">{{ metadataForm.errors.name }}</p>
+                    <Input
+                        v-model="metadataForm.name"
+                        placeholder="Tên template..."
+                    />
+                    <p
+                        v-if="metadataForm.errors.name"
+                        class="text-sm text-destructive"
+                    >
+                        {{ metadataForm.errors.name }}
+                    </p>
                 </div>
                 <div class="flex flex-col gap-2">
-                    <Textarea v-model="metadataForm.description" placeholder="Mô tả..." rows="2" />
-                    <p v-if="metadataForm.errors.description" class="text-destructive text-sm">{{ metadataForm.errors.description }}</p>
+                    <Textarea
+                        v-model="metadataForm.description"
+                        placeholder="Mô tả..."
+                        rows="2"
+                    />
+                    <p
+                        v-if="metadataForm.errors.description"
+                        class="text-sm text-destructive"
+                    >
+                        {{ metadataForm.errors.description }}
+                    </p>
                 </div>
                 <div class="flex gap-2">
-                    <Button size="sm" @click="submitMetadataUpdate" :disabled="metadataForm.processing">
+                    <Button
+                        size="sm"
+                        @click="submitMetadataUpdate"
+                        :disabled="metadataForm.processing"
+                    >
                         {{ metadataForm.processing ? 'Đang lưu...' : 'Lưu' }}
                     </Button>
-                    <Button size="sm" variant="ghost" @click="cancelMetadataEdit">Hủy</Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        @click="cancelMetadataEdit"
+                        >Hủy</Button
+                    >
                 </div>
             </div>
 
-            <Badge v-if="!isEditingMetadata" :variant="template.is_published ? 'default' : 'secondary'" class="shrink-0">
+            <Badge
+                v-if="!isEditingMetadata"
+                :variant="template.is_published ? 'default' : 'secondary'"
+                class="shrink-0"
+            >
                 {{ template.is_published ? 'Published' : 'Draft' }}
             </Badge>
         </div>
 
         <!-- Action bar for Publish/Unpublish -->
-        <div v-if="can.publish" class="flex items-center gap-3 bg-muted/20 p-4 rounded-md border">
+        <div
+            v-if="can.publish"
+            class="flex items-center gap-3 rounded-md border bg-muted/20 p-4"
+        >
             <template v-if="!template.is_published">
-                <div class="flex flex-col gap-1 grow">
-                    <p class="text-sm font-medium">Template đang ở trạng thái nháp</p>
-                    <p class="text-xs text-muted-foreground">Manager chưa thể sử dụng template này.</p>
+                <div class="flex grow flex-col gap-1">
+                    <p class="text-sm font-medium">
+                        Template đang ở trạng thái nháp
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                        Manager chưa thể sử dụng template này.
+                    </p>
                 </div>
-                <Button @click="publishTemplate">
-                    Xuất bản (Publish)
-                </Button>
+                <Button @click="publishTemplate"> Xuất bản (Publish) </Button>
             </template>
             <template v-else>
-                <div class="flex flex-col gap-1 grow">
+                <div class="flex grow flex-col gap-1">
                     <p class="text-sm font-medium">Template đã được xuất bản</p>
-                    <p class="text-xs text-muted-foreground">Manager có thể khởi tạo quy trình từ template này.</p>
+                    <p class="text-xs text-muted-foreground">
+                        Manager có thể khởi tạo quy trình từ template này.
+                    </p>
                 </div>
                 <Button variant="outline" @click="unpublishTemplate">
                     Chuyển về bản nháp (Unpublish)
@@ -190,7 +260,9 @@ function formatDate(isoString: string): string {
             <!-- Sidebar: template metadata -->
             <aside class="lg:col-span-1">
                 <div class="rounded-md border p-4">
-                    <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    <h2
+                        class="mb-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
                         Thông tin template
                     </h2>
                     <dl class="flex flex-col gap-2 text-sm">
@@ -204,21 +276,38 @@ function formatDate(isoString: string): string {
                         </div>
                         <div>
                             <dt class="text-muted-foreground">Ngày tạo</dt>
-                            <dd class="font-medium">{{ formatDate(template.created_at) }}</dd>
+                            <dd class="font-medium">
+                                {{ formatDate(template.created_at) }}
+                            </dd>
                         </div>
                         <div>
                             <dt class="text-muted-foreground">Trạng thái</dt>
                             <dd>
-                                <Badge :variant="template.is_published ? 'default' : 'secondary'">
-                                    {{ template.is_published ? 'Published' : 'Draft' }}
+                                <Badge
+                                    :variant="
+                                        template.is_published
+                                            ? 'default'
+                                            : 'secondary'
+                                    "
+                                >
+                                    {{
+                                        template.is_published
+                                            ? 'Published'
+                                            : 'Draft'
+                                    }}
                                 </Badge>
                             </dd>
                         </div>
                     </dl>
 
                     <!-- Danger zone: Delete -->
-                    <div v-if="can.delete" class="mt-6 pt-6 border-t">
-                        <Button variant="destructive" size="sm" class="w-full" @click="deleteTemplate">
+                    <div v-if="can.delete" class="mt-6 border-t pt-6">
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            class="w-full"
+                            @click="deleteTemplate"
+                        >
                             Xóa template
                         </Button>
                     </div>
@@ -229,7 +318,9 @@ function formatDate(isoString: string): string {
             <main class="lg:col-span-2">
                 <div class="flex flex-col gap-4">
                     <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-semibold">Các bước quy trình</h2>
+                        <h2 class="text-lg font-semibold">
+                            Các bước quy trình
+                        </h2>
                     </div>
 
                     <StepBuilder

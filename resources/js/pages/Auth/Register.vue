@@ -12,14 +12,14 @@ import { store } from '@/routes/register';
 
 defineOptions({
     layout: {
-        title: 'Create an account',
-        description: 'Enter your details below to create your account',
+        title: 'Tạo tài khoản',
+        description: 'Nhập thông tin của bạn bên dưới để tạo tài khoản',
     },
 });
 </script>
 
 <template>
-    <Head title="Register" />
+    <Head title="Đăng ký" />
 
     <Form
         v-bind="store.form()"
@@ -29,22 +29,22 @@ defineOptions({
     >
         <div class="grid gap-6">
             <div class="grid gap-2">
-                <Label for="name">Name</Label>
+                <Label for="full_name">Họ và tên</Label>
                 <Input
-                    id="name"
+                    id="full_name"
                     type="text"
                     required
                     autofocus
                     :tabindex="1"
                     autocomplete="name"
-                    name="name"
-                    placeholder="Full name"
+                    name="full_name"
+                    placeholder="Họ và tên"
                 />
-                <InputError :message="errors.name" />
+                <InputError :message="errors.full_name" />
             </div>
 
             <div class="grid gap-2">
-                <Label for="email">Email address</Label>
+                <Label for="email">Địa chỉ email</Label>
                 <Input
                     id="email"
                     type="email"
@@ -58,27 +58,27 @@ defineOptions({
             </div>
 
             <div class="grid gap-2">
-                <Label for="password">Password</Label>
+                <Label for="password">Mật khẩu</Label>
                 <PasswordInput
                     id="password"
                     required
                     :tabindex="3"
                     autocomplete="new-password"
                     name="password"
-                    placeholder="Password"
+                    placeholder="Mật khẩu"
                 />
                 <InputError :message="errors.password" />
             </div>
 
             <div class="grid gap-2">
-                <Label for="password_confirmation">Confirm password</Label>
+                <Label for="password_confirmation">Xác nhận mật khẩu</Label>
                 <PasswordInput
                     id="password_confirmation"
                     required
                     :tabindex="4"
                     autocomplete="new-password"
                     name="password_confirmation"
-                    placeholder="Confirm password"
+                    placeholder="Xác nhận mật khẩu"
                 />
                 <InputError :message="errors.password_confirmation" />
             </div>
@@ -91,17 +91,17 @@ defineOptions({
                 data-test="register-user-button"
             >
                 <Spinner v-if="processing" />
-                Create account
+                Tạo tài khoản
             </Button>
         </div>
 
         <div class="text-center text-sm text-muted-foreground">
-            Already have an account?
+            Đã có tài khoản?
             <TextLink
                 :href="login()"
                 class="underline underline-offset-4"
                 :tabindex="6"
-                >Log in</TextLink
+                >Đăng nhập</TextLink
             >
         </div>
     </Form>

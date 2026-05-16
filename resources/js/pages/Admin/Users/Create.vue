@@ -16,9 +16,9 @@ import { index as usersIndex, store as usersStore } from '@/routes/admin/users';
 defineOptions({
     layout: {
         breadcrumbs: [
-            { title: 'Dashboard', href: '/dashboard' },
-            { title: 'User Management', href: usersIndex().url },
-            { title: 'Add User', href: '#' },
+            { title: 'Bảng điều khiển', href: '/dashboard' },
+            { title: 'Quản lý người dùng', href: usersIndex().url },
+            { title: 'Thêm người dùng', href: '#' },
         ],
     },
 });
@@ -36,31 +36,34 @@ function submit() {
 </script>
 
 <template>
-    <Head title="Add User" />
+    <Head title="Thêm người dùng" />
 
     <div class="flex flex-col gap-6 p-6">
         <div class="flex items-center justify-between">
-            <h1 class="text-2xl font-semibold">Add User</h1>
+            <h1 class="text-2xl font-semibold">Thêm người dùng</h1>
         </div>
 
         <div class="max-w-lg rounded-md border p-6">
             <form @submit.prevent="submit" class="flex flex-col gap-4">
                 <div class="flex flex-col gap-1.5">
-                    <Label for="full_name">Full Name</Label>
+                    <Label for="full_name">Họ và tên</Label>
                     <Input
                         id="full_name"
                         v-model="form.full_name"
                         type="text"
-                        placeholder="Full name"
+                        placeholder="Họ và tên"
                         :class="{ 'border-destructive': form.errors.full_name }"
                     />
-                    <p v-if="form.errors.full_name" class="text-destructive text-sm">
+                    <p
+                        v-if="form.errors.full_name"
+                        class="text-sm text-destructive"
+                    >
                         {{ form.errors.full_name }}
                     </p>
                 </div>
 
                 <div class="flex flex-col gap-1.5">
-                    <Label for="email">Email</Label>
+                    <Label for="email">Địa chỉ email</Label>
                     <Input
                         id="email"
                         v-model="form.email"
@@ -68,52 +71,64 @@ function submit() {
                         placeholder="email@example.com"
                         :class="{ 'border-destructive': form.errors.email }"
                     />
-                    <p v-if="form.errors.email" class="text-destructive text-sm">
+                    <p
+                        v-if="form.errors.email"
+                        class="text-sm text-destructive"
+                    >
                         {{ form.errors.email }}
                     </p>
                 </div>
 
                 <div class="flex flex-col gap-1.5">
-                    <Label for="password">Password</Label>
+                    <Label for="password">Mật khẩu</Label>
                     <Input
                         id="password"
                         v-model="form.password"
                         type="password"
-                        placeholder="Min 8 characters"
+                        placeholder="Tối thiểu 8 ký tự"
                         :class="{ 'border-destructive': form.errors.password }"
                     />
-                    <p v-if="form.errors.password" class="text-destructive text-sm">
+                    <p
+                        v-if="form.errors.password"
+                        class="text-sm text-destructive"
+                    >
                         {{ form.errors.password }}
                     </p>
                 </div>
 
                 <div class="flex flex-col gap-1.5">
-                    <Label for="role">Role</Label>
+                    <Label for="role">Vai trò</Label>
                     <Select v-model="form.role">
                         <SelectTrigger
                             id="role"
                             :class="{ 'border-destructive': form.errors.role }"
                         >
-                            <SelectValue placeholder="Select a role" />
+                            <SelectValue placeholder="Chọn vai trò" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="manager">Manager</SelectItem>
-                            <SelectItem value="process_designer">Process Designer</SelectItem>
-                            <SelectItem value="executor">Executor</SelectItem>
-                            <SelectItem value="beneficiary">Beneficiary</SelectItem>
+                            <SelectItem value="manager">Quản lý</SelectItem>
+                            <SelectItem value="process_designer"
+                                >Thiết kế quy trình</SelectItem
+                            >
+                            <SelectItem value="executor"
+                                >Người thực thi</SelectItem
+                            >
+                            <SelectItem value="beneficiary"
+                                >Người thụ hưởng</SelectItem
+                            >
                         </SelectContent>
                     </Select>
-                    <p v-if="form.errors.role" class="text-destructive text-sm">
+                    <p v-if="form.errors.role" class="text-sm text-destructive">
                         {{ form.errors.role }}
                     </p>
                 </div>
 
                 <div class="flex gap-2 pt-2">
                     <Button type="submit" :disabled="form.processing">
-                        Create User
+                        Tạo người dùng
                     </Button>
                     <Button variant="outline" as="a" :href="usersIndex().url">
-                        Cancel
+                        Hủy
                     </Button>
                 </div>
             </form>

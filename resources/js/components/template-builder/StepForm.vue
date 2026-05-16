@@ -4,9 +4,18 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { store as stepStore, update as stepUpdate } from '@/routes/step-definitions';
+import {
+    store as stepStore,
+    update as stepUpdate,
+} from '@/routes/step-definitions';
 import type { StepDefinition } from '@/types/step';
 
 const props = defineProps<{
@@ -19,7 +28,6 @@ const emit = defineEmits<{
     cancel: [];
     success: [];
 }>();
-
 
 const isEditing = !!props.step;
 
@@ -61,7 +69,9 @@ function submit() {
                 :class="{ 'border-destructive': form.errors.name }"
                 data-test="step-name-input"
             />
-            <p v-if="form.errors.name" class="text-destructive text-sm">{{ form.errors.name }}</p>
+            <p v-if="form.errors.name" class="text-sm text-destructive">
+                {{ form.errors.name }}
+            </p>
         </div>
 
         <div class="flex flex-col gap-1.5">
@@ -84,7 +94,9 @@ function submit() {
                     <SelectContent>
                         <SelectItem value="user">Người dùng cụ thể</SelectItem>
                         <SelectItem value="role">Theo vai trò</SelectItem>
-                        <SelectItem value="department">Theo phòng ban</SelectItem>
+                        <SelectItem value="department"
+                            >Theo phòng ban</SelectItem
+                        >
                     </SelectContent>
                 </Select>
             </div>
@@ -99,10 +111,15 @@ function submit() {
                     type="number"
                     min="1"
                     placeholder="24"
-                    :class="{ 'border-destructive': form.errors.duration_hours }"
+                    :class="{
+                        'border-destructive': form.errors.duration_hours,
+                    }"
                     data-test="duration-input"
                 />
-                <p v-if="form.errors.duration_hours" class="text-destructive text-sm">
+                <p
+                    v-if="form.errors.duration_hours"
+                    class="text-sm text-destructive"
+                >
                     {{ form.errors.duration_hours }}
                 </p>
             </div>
@@ -110,17 +127,25 @@ function submit() {
 
         <div class="flex items-center gap-2">
             <Checkbox id="is-required" v-model:checked="form.is_required" />
-            <Label for="is-required" class="cursor-pointer">Bắt buộc hoàn thành</Label>
+            <Label for="is-required" class="cursor-pointer"
+                >Bắt buộc hoàn thành</Label
+            >
         </div>
 
         <div class="flex gap-2">
             <Button
                 type="submit"
-                :disabled="form.processing || !form.name.trim() || form.duration_hours < 1"
+                :disabled="
+                    form.processing ||
+                    !form.name.trim() ||
+                    form.duration_hours < 1
+                "
                 data-test="submit-step-button"
             >
                 <span v-if="form.processing">Đang lưu...</span>
-                <span v-else>{{ submitLabel ?? (isEditing ? 'Lưu thay đổi' : 'Thêm bước') }}</span>
+                <span v-else>{{
+                    submitLabel ?? (isEditing ? 'Lưu thay đổi' : 'Thêm bước')
+                }}</span>
             </Button>
             <Button
                 type="button"

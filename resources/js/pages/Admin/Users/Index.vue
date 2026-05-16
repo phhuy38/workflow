@@ -11,8 +11,15 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { index as usersIndex, create as usersCreate, edit as usersEdit } from '@/routes/admin/users';
-import { deactivate as deactivateUser, reactivate as reactivateUser } from '@/routes/admin/users';
+import {
+    index as usersIndex,
+    create as usersCreate,
+    edit as usersEdit,
+} from '@/routes/admin/users';
+import {
+    deactivate as deactivateUser,
+    reactivate as reactivateUser,
+} from '@/routes/admin/users';
 
 interface UserData {
     id: number;
@@ -44,16 +51,16 @@ defineProps<{
 defineOptions({
     layout: {
         breadcrumbs: [
-            { title: 'Dashboard', href: '/dashboard' },
-            { title: 'User Management', href: usersIndex().url },
+            { title: 'Bảng điều khiển', href: '/dashboard' },
+            { title: 'Quản lý người dùng', href: usersIndex().url },
         ],
     },
 });
 
 function handleDeactivate(user: UserData) {
-    if (!confirm(`Deactivate user "${user.full_name}"?`)) {
-return;
-}
+    if (!confirm(`Vô hiệu hóa người dùng "${user.full_name}"?`)) {
+        return;
+    }
 
     router.post(deactivateUser({ user: user.id }).url);
 }
@@ -62,8 +69,13 @@ function handleReactivate(user: UserData) {
     router.post(reactivateUser({ user: user.id }).url);
 }
 
-function roleColor(role: string): 'default' | 'secondary' | 'destructive' | 'outline' {
-    const map: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+function roleColor(
+    role: string,
+): 'default' | 'secondary' | 'destructive' | 'outline' {
+    const map: Record<
+        string,
+        'default' | 'secondary' | 'destructive' | 'outline'
+    > = {
         admin: 'destructive',
         manager: 'default',
         process_designer: 'secondary',
@@ -76,29 +88,31 @@ function roleColor(role: string): 'default' | 'secondary' | 'destructive' | 'out
 </script>
 
 <template>
-    <Head title="User Management" />
+    <Head title="Quản lý người dùng" />
 
     <div class="flex flex-col gap-6 p-6">
         <div class="flex items-center justify-between">
-            <h1 class="text-2xl font-semibold">User Management</h1>
-            <Button as="a" :href="usersCreate().url">Add User</Button>
+            <h1 class="text-2xl font-semibold">Quản lý người dùng</h1>
+            <Button as="a" :href="usersCreate().url">Thêm người dùng</Button>
         </div>
 
         <div class="rounded-md border">
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Name</TableHead>
+                        <TableHead>Họ và tên</TableHead>
                         <TableHead>Email</TableHead>
-                        <TableHead>Roles</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Last Login</TableHead>
-                        <TableHead class="text-right">Actions</TableHead>
+                        <TableHead>Vai trò</TableHead>
+                        <TableHead>Trạng thái</TableHead>
+                        <TableHead>Đăng nhập lần cuối</TableHead>
+                        <TableHead class="text-right">Hành động</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     <TableRow v-for="user in users.data" :key="user.id">
-                        <TableCell class="font-medium">{{ user.full_name }}</TableCell>
+                        <TableCell class="font-medium">{{
+                            user.full_name
+                        }}</TableCell>
                         <TableCell>{{ user.email }}</TableCell>
                         <TableCell>
                             <div class="flex flex-wrap gap-1">
@@ -107,23 +121,58 @@ function roleColor(role: string): 'default' | 'secondary' | 'destructive' | 'out
                                     :key="role"
                                     :variant="roleColor(role)"
                                 >
-                                    {{ role }}
+                                    {{
+                                        role === 'admin'
+                                            ? 'Quản trị viên'
+                                            : role === 'manager'
+                                              ? 'Quản lý'
+                                              : role === 'process_designer'
+                                                ? 'Thiết kế quy trình'
+                                                : role === 'executor'
+                                                  ? 'Người thực thi'
+                                                  : role === 'beneficiary'
+                                                    ? 'Người thụ hưởng'
+                                                    : role
+                                    }}
                                 </Badge>
-                                <span v-if="user.roles.length === 0" class="text-muted-foreground text-sm">—</span>
+                                <span
+                                    v-if="user.roles.length === 0"
+                                    class="text-sm text-muted-foreground"
+                                    >—</span
+                                >
                             </div>
                         </TableCell>
                         <TableCell>
-                            <Badge :variant="user.is_active ? 'default' : 'destructive'">
-                                {{ user.is_active ? 'Active' : 'Inactive' }}
+                            <Badge
+                                :variant="
+                                    user.is_active ? 'default' : 'destructive'
+                                "
+                            >
+                                {{
+                                    user.is_active
+                                        ? 'Hoạt động'
+                                        : 'Đã vô hiệu hóa'
+                                }}
                             </Badge>
                         </TableCell>
-                        <TableCell class="text-muted-foreground text-sm">
-                            {{ user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : '—' }}
+                        <TableCell class="text-sm text-muted-foreground">
+                            {{
+                                user.last_login_at
+                                    ? new Date(
+                                          user.last_login_at,
+                                      ).toLocaleDateString()
+                                    : '—'
+                            }}
                         </TableCell>
                         <TableCell class="text-right">
                             <div class="flex justify-end gap-2">
-                                <Button variant="outline" size="sm" as="a" :href="usersEdit({ user: user.id }).url">
-                                    Edit
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    as="a"
+                                    :href="usersEdit({ user: user.id }).url"
+                                >
+                                    Sửa
                                 </Button>
                                 <Button
                                     v-if="user.is_active"
@@ -131,7 +180,7 @@ function roleColor(role: string): 'default' | 'secondary' | 'destructive' | 'out
                                     size="sm"
                                     @click="handleDeactivate(user)"
                                 >
-                                    Deactivate
+                                    Vô hiệu hóa
                                 </Button>
                                 <Button
                                     v-else
@@ -139,14 +188,17 @@ function roleColor(role: string): 'default' | 'secondary' | 'destructive' | 'out
                                     size="sm"
                                     @click="handleReactivate(user)"
                                 >
-                                    Reactivate
+                                    Kích hoạt
                                 </Button>
                             </div>
                         </TableCell>
                     </TableRow>
                     <TableRow v-if="users.data.length === 0">
-                        <TableCell colspan="6" class="text-muted-foreground py-8 text-center">
-                            No users found.
+                        <TableCell
+                            colspan="6"
+                            class="py-8 text-center text-muted-foreground"
+                        >
+                            Không tìm thấy người dùng nào.
                         </TableCell>
                     </TableRow>
                 </TableBody>
@@ -162,10 +214,10 @@ function roleColor(role: string): 'default' | 'secondary' | 'destructive' | 'out
                 as="a"
                 :href="users.links.prev ?? '#'"
             >
-                Previous
+                Trang trước
             </Button>
-            <span class="text-muted-foreground flex items-center px-2 text-sm">
-                Page {{ users.meta.current_page }} of {{ users.meta.last_page }}
+            <span class="flex items-center px-2 text-sm text-muted-foreground">
+                Trang {{ users.meta.current_page }} / {{ users.meta.last_page }}
             </span>
             <Button
                 variant="outline"
@@ -174,7 +226,7 @@ function roleColor(role: string): 'default' | 'secondary' | 'destructive' | 'out
                 as="a"
                 :href="users.links.next ?? '#'"
             >
-                Next
+                Trang sau
             </Button>
         </div>
     </div>

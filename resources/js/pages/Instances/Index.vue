@@ -39,11 +39,16 @@ defineOptions({
 
 function getStatusVariant(status: string) {
     switch (status) {
-        case 'running': return 'default';
-        case 'completed': return 'success';
-        case 'cancelled': return 'destructive';
-        case 'paused': return 'warning';
-        default: return 'secondary';
+        case 'running':
+            return 'default';
+        case 'completed':
+            return 'success';
+        case 'cancelled':
+            return 'destructive';
+        case 'paused':
+            return 'warning';
+        default:
+            return 'secondary';
     }
 }
 
@@ -65,7 +70,12 @@ function formatDate(isoString: string): string {
     <div class="flex flex-col gap-6 p-6">
         <div class="flex items-center justify-between">
             <h1 class="text-2xl font-semibold">Danh sách quy trình</h1>
-            <Button v-if="$page.props.auth.can?.launch_instances" as="a" href="/process-instances/create">Khởi động quy trình mới</Button>
+            <Button
+                v-if="$page.props.auth.can?.launch_instances"
+                as="a"
+                href="/process-instances/create"
+                >Khởi động quy trình mới</Button
+            >
         </div>
 
         <div class="rounded-md border">
@@ -86,16 +96,28 @@ function formatDate(isoString: string): string {
                         <TableCell class="font-medium">
                             <div class="flex flex-col">
                                 <span>{{ instance.name }}</span>
-                                <span class="text-xs text-muted-foreground">Người khởi động: {{ instance.creator_name }}</span>
+                                <span class="text-xs text-muted-foreground"
+                                    >Người khởi động:
+                                    {{ instance.creator_name }}</span
+                                >
                             </div>
                         </TableCell>
                         <TableCell>{{ instance.template_name }}</TableCell>
                         <TableCell>
                             <div class="flex items-center gap-2">
-                                <div class="w-24 h-2 bg-secondary rounded-full overflow-hidden">
-                                    <div class="h-full bg-primary" :style="{ width: instance.progress + '%' }"></div>
+                                <div
+                                    class="h-2 w-24 overflow-hidden rounded-full bg-secondary"
+                                >
+                                    <div
+                                        class="h-full bg-primary"
+                                        :style="{
+                                            width: instance.progress + '%',
+                                        }"
+                                    ></div>
                                 </div>
-                                <span class="text-xs font-medium">{{ instance.progress }}%</span>
+                                <span class="text-xs font-medium"
+                                    >{{ instance.progress }}%</span
+                                >
                             </div>
                         </TableCell>
                         <TableCell>{{ instance.current_step }}</TableCell>
@@ -108,13 +130,21 @@ function formatDate(isoString: string): string {
                             {{ formatDate(instance.launched_at) }}
                         </TableCell>
                         <TableCell class="text-right">
-                            <Button variant="outline" size="sm" as="a" :href="`/process-instances/${instance.id}`">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                as="a"
+                                :href="`/process-instances/${instance.id}`"
+                            >
                                 Chi tiết
                             </Button>
                         </TableCell>
                     </TableRow>
                     <TableRow v-if="instances.length === 0">
-                        <TableCell colspan="7" class="text-muted-foreground py-8 text-center">
+                        <TableCell
+                            colspan="7"
+                            class="py-8 text-center text-muted-foreground"
+                        >
                             Chưa có quy trình nào đang chạy liên quan đến bạn.
                         </TableCell>
                     </TableRow>

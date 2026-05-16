@@ -50,29 +50,42 @@ function confirmDelete(step: StepDefinition) {
         <CardHeader class="pb-2">
             <div class="flex items-start justify-between gap-2">
                 <div class="flex items-center gap-3">
-                    <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold">
+                    <span
+                        class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold"
+                    >
                         {{ step.order }}
                     </span>
                     <div>
-                        <p class="font-semibold leading-tight">{{ step.name }}</p>
-                        <p v-if="step.description" class="text-muted-foreground mt-0.5 text-xs">
+                        <p class="leading-tight font-semibold">
+                            {{ step.name }}
+                        </p>
+                        <p
+                            v-if="step.description"
+                            class="mt-0.5 text-xs text-muted-foreground"
+                        >
                             {{ step.description }}
                         </p>
                     </div>
                 </div>
-                <Badge v-if="isNew" variant="default" class="shrink-0 text-xs">MỚI</Badge>
+                <Badge v-if="isNew" variant="default" class="shrink-0 text-xs"
+                    >MỚI</Badge
+                >
             </div>
         </CardHeader>
 
         <CardContent class="pt-0">
-            <div class="text-muted-foreground flex flex-wrap gap-3 text-xs">
+            <div class="flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span>
-                    <span class="font-medium">Người phụ trách:</span> {{ assigneeLabel(step) }}
+                    <span class="font-medium">Người phụ trách:</span>
+                    {{ assigneeLabel(step) }}
                 </span>
                 <span>
-                    <span class="font-medium">Thời hạn:</span> {{ step.duration_hours }}h
+                    <span class="font-medium">Thời hạn:</span>
+                    {{ step.duration_hours }}h
                 </span>
-                <Badge v-if="step.is_required" variant="outline" class="text-xs">Bắt buộc</Badge>
+                <Badge v-if="step.is_required" variant="outline" class="text-xs"
+                    >Bắt buộc</Badge
+                >
             </div>
 
             <div v-if="canEdit" class="mt-3 flex gap-1">
