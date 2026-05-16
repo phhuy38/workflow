@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Mail\StateConsistencyAlertMail;
 use App\Models\ProcessInstance;
 use App\Models\User;
+use App\States\ProcessInstance\Completed;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -40,7 +41,7 @@ class CheckStateConsistency extends Command
 
                 foreach ($instances as $instance) {
                     try {
-                        $instance->status->transitionTo(\App\States\ProcessInstance\Completed::class);
+                        $instance->status->transitionTo(Completed::class);
                         $instance->update(['completed_at' => now()]);
 
                         activity()

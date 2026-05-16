@@ -9,7 +9,7 @@ class ProcessInstancePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasPermissionTo('view_all_instances') || $user->hasRole(['beneficiary', 'executor']);
+        return $user->hasPermissionTo('view_all_instances') || $user->hasPermissionTo('view_own_instances');
     }
 
     /**
@@ -76,7 +76,19 @@ class ProcessInstancePolicy
 
     public function ping(User $user, ProcessInstance $instance): bool
     {
-        return $user->hasRole(['admin', 'manager']) || ($user->hasRole('beneficiary') && $this->isBeneficiaryForInstance($user, $instance));
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        if ($user->hasRole('manager')) {
+            return $user->id == $instance->launched_by;
+        }
+
+        if ($user->hasRole('beneficiary')) {
+            return $this->isBeneficiaryForInstance($user, $instance);
+        }
+
+        return false;
     }
 
     public function viewFullLog(User $user, ProcessInstance $instance): bool

@@ -13,13 +13,12 @@ class TaskAssignedMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public StepExecution $step)
-    {
-    }
+    public function __construct(public StepExecution $step) {}
 
     public function envelope(): Envelope
     {
         $instanceName = $this->step->instance?->name ?? 'Unknown Process';
+
         return new Envelope(
             subject: "Bạn có công việc mới: {$this->step->name} - {$instanceName}",
         );

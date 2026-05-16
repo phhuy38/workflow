@@ -21,6 +21,7 @@ class ResolveStepAssignee
 
         if (empty($type) || is_null($idOrRole) || $idOrRole === '') {
             Log::warning('ResolveStepAssignee: Missing assignee_type or assignee_id', ['step' => $stepSnapshot]);
+
             return null;
         }
 
@@ -31,6 +32,7 @@ class ResolveStepAssignee
                 return $user->id;
             }
             Log::warning("ResolveStepAssignee: User ID '{$idOrRole}' not found.", ['step' => $stepSnapshot]);
+
             return null;
         }
 
@@ -43,13 +45,15 @@ class ResolveStepAssignee
                 }
 
                 Log::warning("ResolveStepAssignee: No users found with role '{$idOrRole}' for step.", ['step' => $stepSnapshot]);
-            } catch (\Spatie\Permission\Exceptions\RoleDoesNotExist $e) {
+            } catch (RoleDoesNotExist $e) {
                 Log::warning("ResolveStepAssignee: Role '{$idOrRole}' does not exist.", ['step' => $stepSnapshot]);
             }
+
             return null;
         }
 
         Log::warning("ResolveStepAssignee: Unknown assignee_type '{$type}'", ['step' => $stepSnapshot]);
+
         return null;
     }
 }

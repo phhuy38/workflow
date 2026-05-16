@@ -11,7 +11,5 @@ class TaskAssigned
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public function __construct(public StepExecution $step)
-    {
-    }
+    public function __construct(public StepExecution $step) {}
 }

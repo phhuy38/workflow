@@ -2,6 +2,8 @@
 
 namespace App\Actions\Process;
 
+use App\Events\StepExecutionUpdated;
+use App\Events\TaskAssigned;
 use App\Models\ProcessInstance;
 use App\Models\StepExecution;
 use App\Models\User;
@@ -10,9 +12,7 @@ use Illuminate\Support\Facades\DB;
 
 class AdvanceProcessInstance
 {
-    public function __construct(private ResolveStepAssignee $resolveAssignee)
-    {
-    }
+    public function __construct(private ResolveStepAssignee $resolveAssignee) {}
 
     public function handle(ProcessInstance $instance, StepExecution $currentStep, User $user): void
     {
@@ -37,9 +37,9 @@ class AdvanceProcessInstance
             ]);
 
             DB::afterCommit(function () use ($newStep) {
-                event(new \App\Events\StepExecutionUpdated($newStep));
+                event(new StepExecutionUpdated($newStep));
                 if ($newStep->assigned_to) {
-                    event(new \App\Events\TaskAssigned($newStep));
+                    event(new TaskAssigned($newStep));
                 }
             });
 

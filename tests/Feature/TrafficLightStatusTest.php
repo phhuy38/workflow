@@ -7,14 +7,13 @@ use App\Models\User;
 use App\Services\InstanceStatusCalculator;
 use Database\Seeders\RequiredDataSeeder;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
-use function Pest\Laravel\actingAs;
 
 beforeEach(function () {
     $this->seed(RequiredDataSeeder::class);
     $this->withoutMiddleware(PreventRequestForgery::class);
     $this->designer = User::factory()->create();
     $this->designer->assignRole('process_designer');
-    
+
     $this->template = ProcessTemplate::create([
         'name' => 'Traffic Light Template',
         'created_by' => $this->designer->id,
@@ -26,7 +25,7 @@ function createInstanceWithStep(string $status, ?int $createdAt = null, ?int $de
 {
     $instance = ProcessInstance::create([
         'template_id' => test()->template->id,
-        'name' => 'Instance ' . uniqid(),
+        'name' => 'Instance '.uniqid(),
         'template_snapshot_data' => [],
         'launched_by' => test()->designer->id,
         'status' => 'running',
@@ -81,7 +80,7 @@ test('returns warning if step deadline is <= 30% of duration', function () {
         'step_snapshot_data' => [],
         'deadline_at' => now()->addMinutes(100),
     ]);
-    
+
     // Jump forward by 75 minutes. Remaining is 25 minutes (25%)
     test()->travelTo(now()->addMinutes(75));
 

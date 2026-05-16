@@ -34,7 +34,7 @@ class ProcessInstanceController extends Controller
         } else {
             $query->where(function ($q) {
                 $q->where('launched_by', auth()->id())
-                  ->orWhereHas('stepExecutions', fn($stepQ) => $stepQ->where('assigned_to', auth()->id()));
+                    ->orWhereHas('stepExecutions', fn ($stepQ) => $stepQ->where('assigned_to', auth()->id()));
             });
         }
 

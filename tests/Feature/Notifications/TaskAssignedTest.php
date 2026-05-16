@@ -1,6 +1,7 @@
 <?php
 
 use App\Events\TaskAssigned;
+use App\Listeners\SendTaskAssignedNotification;
 use App\Mail\TaskAssignedMail;
 use App\Models\ProcessInstance;
 use App\Models\ProcessTemplate;
@@ -26,7 +27,7 @@ test('task assigned event triggers mail to be queued', function () {
     $executor->assignRole('executor');
 
     $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
-    
+
     StepDefinition::create([
         'template_id' => $template->id,
         'order' => 1,
@@ -47,7 +48,7 @@ test('task assigned event triggers mail to be queued', function () {
     $response->assertSessionHasNoErrors();
 
     Event::assertDispatched(TaskAssigned::class, function (TaskAssigned $event) use ($executor) {
-        return $event->step->assigned_to === $executor->id && 
+        return $event->step->assigned_to === $executor->id &&
                $event->step->name === 'First Step';
     });
 });
@@ -57,21 +58,21 @@ test('listener queues task assigned email', function () {
 
     $executor = User::factory()->create();
     $manager = User::factory()->create();
-    
+
     $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
     $instance = ProcessInstance::create(['template_id' => $template->id, 'name' => 'Instance', 'launched_by' => $manager->id, 'status' => 'running', 'template_snapshot_data' => []]);
 
     $step = StepExecution::create([
         'instance_id' => $instance->id, 'name' => 'Notification Step', 'order' => 1, 'status' => 'pending', 'assigned_to' => $executor->id, 'step_snapshot_data' => [],
-        'deadline_at' => now()->addMinutes(60)
+        'deadline_at' => now()->addMinutes(60),
     ]);
 
     $event = new TaskAssigned($step);
-    $listener = new \App\Listeners\SendTaskAssignedNotification();
+    $listener = new SendTaskAssignedNotification;
     $listener->handle($event);
 
     Mail::assertSent(TaskAssignedMail::class, function (TaskAssignedMail $mail) use ($executor) {
-        return $mail->hasTo($executor->email) && 
+        return $mail->hasTo($executor->email) &&
                $mail->step->name === 'Notification Step';
     });
 });

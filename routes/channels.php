@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ProcessInstance;
 use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
@@ -11,7 +12,8 @@ Broadcast::channel('system.instances', function ($user) {
 });
 
 Broadcast::channel('instance.{instanceId}', function ($user, $instanceId) {
-    $instance = \App\Models\ProcessInstance::find($instanceId);
+    $instance = ProcessInstance::find($instanceId);
+
     return $instance ? $user->can('view', $instance) : false;
 });
 

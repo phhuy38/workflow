@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\InboxTaskResource;
 use App\Models\StepExecution;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 

@@ -8,6 +8,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Str;
 
 class NewMessageReceivedMail extends Mailable
 {
@@ -22,7 +23,7 @@ class NewMessageReceivedMail extends Mailable
     {
         $instanceName = $this->message->stepExecution->instance->name;
         $cleanName = str_replace(["\r", "\n"], ' ', $instanceName);
-        $subjectName = \Illuminate\Support\Str::limit($cleanName, 50);
+        $subjectName = Str::limit($cleanName, 50);
 
         return new Envelope(
             subject: "Bạn có tin nhắn mới trong quy trình: {$subjectName}",

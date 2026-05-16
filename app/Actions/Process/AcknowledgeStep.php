@@ -2,6 +2,8 @@
 
 namespace App\Actions\Process;
 
+use App\Events\ProcessInstanceUpdated;
+use App\Events\StepExecutionUpdated;
 use App\Models\StepExecution;
 use App\Models\User;
 use App\States\StepExecution\InProgress;
@@ -22,8 +24,8 @@ class AcknowledgeStep
                 ->causedBy($user)
                 ->log('acknowledged');
 
-            event(new \App\Events\StepExecutionUpdated($step));
-            event(new \App\Events\ProcessInstanceUpdated($step->instance));
+            event(new StepExecutionUpdated($step));
+            event(new ProcessInstanceUpdated($step->instance));
         });
     }
 }

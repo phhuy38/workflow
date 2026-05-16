@@ -1,6 +1,7 @@
 <?php
 
 use App\Events\MessageSent;
+use App\Listeners\SendNewMessageNotification;
 use App\Mail\NewMessageReceivedMail;
 use App\Models\ProcessInstance;
 use App\Models\ProcessTemplate;
@@ -10,6 +11,7 @@ use App\Models\User;
 use Database\Seeders\RequiredDataSeeder;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
+
 use function Pest\Laravel\actingAs;
 
 beforeEach(function () {
@@ -34,7 +36,7 @@ test('beneficiary can ping executor and mail is sent', function () {
 
     $step = StepExecution::create([
         'instance_id' => $instance->id, 'name' => 'Pending Task', 'order' => 1, 'status' => 'pending', 'assigned_to' => $executor->id, 'step_snapshot_data' => [],
-        'deadline_at' => now()->addMinutes(60)
+        'deadline_at' => now()->addMinutes(60),
     ]);
 
     $response = actingAs($beneficiary)->post(route('step-messages.store', $step), [
@@ -55,7 +57,7 @@ test('beneficiary can ping executor and mail is sent', function () {
 
     // Call listener manually
     $message = StepMessage::first();
-    $listener = new \App\Listeners\SendNewMessageNotification();
+    $listener = new SendNewMessageNotification;
     $listener->handle(new MessageSent($message));
 
     Mail::assertSent(NewMessageReceivedMail::class, function ($mail) use ($executor) {
@@ -81,7 +83,7 @@ test('executor can reply to beneficiary', function () {
 
     $step = StepExecution::create([
         'instance_id' => $instance->id, 'name' => 'Pending Task', 'order' => 1, 'status' => 'pending', 'assigned_to' => $executor->id, 'step_snapshot_data' => [],
-        'deadline_at' => now()->addMinutes(60)
+        'deadline_at' => now()->addMinutes(60),
     ]);
 
     $response = actingAs($executor)->post(route('step-messages.store', $step), [
@@ -110,7 +112,7 @@ test('unauthorized user gets 403 when trying to ping', function () {
 
     $beneficiary = User::factory()->create();
     $beneficiary->assignRole('beneficiary');
-    
+
     $otherBeneficiary = User::factory()->create();
     $otherBeneficiary->assignRole('beneficiary');
 
@@ -119,7 +121,7 @@ test('unauthorized user gets 403 when trying to ping', function () {
 
     $step = StepExecution::create([
         'instance_id' => $instance->id, 'name' => 'Pending Task', 'order' => 1, 'status' => 'pending', 'assigned_to' => $executor->id, 'step_snapshot_data' => [],
-        'deadline_at' => now()->addMinutes(60)
+        'deadline_at' => now()->addMinutes(60),
     ]);
 
     $response = actingAs($otherBeneficiary)->post(route('step-messages.store', $step), [

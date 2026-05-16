@@ -2,7 +2,6 @@
 
 namespace App\Mail;
 
-use App\Models\ProcessInstance;
 use App\Models\StepExecution;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -14,9 +13,7 @@ class UnacknowledgedStepAlertMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public StepExecution $step)
-    {
-    }
+    public function __construct(public StepExecution $step) {}
 
     public function envelope(): Envelope
     {

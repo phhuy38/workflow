@@ -15,6 +15,7 @@ class SendTaskAssignedNotification implements ShouldQueue
     use InteractsWithQueue;
 
     public $tries = 3;
+
     public bool $deleteWhenMissingModels = true;
 
     public function backoff(): array

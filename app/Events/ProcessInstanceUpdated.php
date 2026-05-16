@@ -3,7 +3,6 @@
 namespace App\Events;
 
 use App\Models\ProcessInstance;
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -20,7 +19,7 @@ class ProcessInstanceUpdated implements ShouldBroadcast
     {
         return [
             new PrivateChannel('system.instances'),
-            new PrivateChannel('instance.' . $this->instance->id),
+            new PrivateChannel('instance.'.$this->instance->id),
         ];
     }
 }

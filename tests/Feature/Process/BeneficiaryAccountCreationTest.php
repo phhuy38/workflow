@@ -1,6 +1,7 @@
 <?php
 
 use App\Events\StepCompleted;
+use App\Listeners\HandleBeneficiaryAccountCreation;
 use App\Mail\BeneficiaryAccountCreatedMail;
 use App\Mail\BeneficiaryExistingAccountMail;
 use App\Models\ProcessInstance;
@@ -10,6 +11,7 @@ use App\Models\User;
 use Database\Seeders\RequiredDataSeeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+
 use function Pest\Laravel\actingAs;
 
 beforeEach(function () {
@@ -29,7 +31,7 @@ test('it creates a new beneficiary user and sends welcome mail', function () {
         'launched_by' => $manager->id,
         'status' => 'running',
         'template_snapshot_data' => [],
-        'context_data' => ['beneficiary_email' => 'newuser@example.com']
+        'context_data' => ['beneficiary_email' => 'newuser@example.com'],
     ]);
 
     $step = StepExecution::create([
@@ -39,11 +41,11 @@ test('it creates a new beneficiary user and sends welcome mail', function () {
         'status' => 'completed',
         'assigned_to' => $manager->id,
         'step_snapshot_data' => ['config_data' => ['is_account_creation_step' => true]],
-        'deadline_at' => now()->addMinutes(60)
+        'deadline_at' => now()->addMinutes(60),
     ]);
 
     $event = new StepCompleted($step);
-    $listener = new \App\Listeners\HandleBeneficiaryAccountCreation();
+    $listener = new HandleBeneficiaryAccountCreation;
     $listener->handle($event);
 
     $user = User::where('email', 'newuser@example.com')->first();
@@ -75,7 +77,7 @@ test('it links existing beneficiary user and sends existing account mail', funct
         'launched_by' => $manager->id,
         'status' => 'running',
         'template_snapshot_data' => [],
-        'context_data' => ['beneficiary_email' => 'existing@example.com']
+        'context_data' => ['beneficiary_email' => 'existing@example.com'],
     ]);
 
     $step = StepExecution::create([
@@ -85,11 +87,11 @@ test('it links existing beneficiary user and sends existing account mail', funct
         'status' => 'completed',
         'assigned_to' => $manager->id,
         'step_snapshot_data' => ['config_data' => ['is_account_creation_step' => true]],
-        'deadline_at' => now()->addMinutes(60)
+        'deadline_at' => now()->addMinutes(60),
     ]);
 
     $event = new StepCompleted($step);
-    $listener = new \App\Listeners\HandleBeneficiaryAccountCreation();
+    $listener = new HandleBeneficiaryAccountCreation;
     $listener->handle($event);
 
     $instance->refresh();

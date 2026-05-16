@@ -2,6 +2,7 @@
 
 namespace App\Actions\Process;
 
+use App\Events\ProcessInstanceUpdated;
 use App\Models\ProcessInstance;
 use App\Models\User;
 use App\States\ProcessInstance\Cancelled;
@@ -43,7 +44,7 @@ class CancelInstance
                     ->log('cancelled');
             }
 
-            event(new \App\Events\ProcessInstanceUpdated($instance));
+            event(new ProcessInstanceUpdated($instance));
         });
     }
 }

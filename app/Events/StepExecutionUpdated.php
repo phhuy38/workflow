@@ -3,7 +3,6 @@
 namespace App\Events;
 
 use App\Models\StepExecution;
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -19,11 +18,11 @@ class StepExecutionUpdated implements ShouldBroadcast
     public function broadcastOn(): array
     {
         $channels = [
-            new PrivateChannel('instance.' . $this->step->instance_id),
+            new PrivateChannel('instance.'.$this->step->instance_id),
         ];
 
         if ($this->step->assigned_to) {
-            $channels[] = new PrivateChannel('user.' . $this->step->assigned_to);
+            $channels[] = new PrivateChannel('user.'.$this->step->assigned_to);
         }
 
         return $channels;

@@ -2,18 +2,16 @@
 
 namespace App\Actions\Process;
 
-use App\Models\ProcessInstance;
+use App\Events\ProcessInstanceUpdated;
+use App\Events\StepExecutionUpdated;
 use App\Models\StepExecution;
 use App\Models\User;
-use App\States\ProcessInstance\Completed as ProcessCompleted;
 use App\States\StepExecution\Completed as StepCompleted;
 use Illuminate\Support\Facades\DB;
 
 class CompleteStep
 {
-    public function __construct(private AdvanceProcessInstance $advanceProcess)
-    {
-    }
+    public function __construct(private AdvanceProcessInstance $advanceProcess) {}
 
     public function handle(StepExecution $step, User $user, array $data = []): void
     {
@@ -38,11 +36,10 @@ class CompleteStep
 
             DB::afterCommit(function () use ($step) {
                 event(new \App\Events\StepCompleted($step));
-                event(new \App\Events\StepExecutionUpdated($step));
+                event(new StepExecutionUpdated($step));
                 $step->instance->refresh();
-                event(new \App\Events\ProcessInstanceUpdated($step->instance));
+                event(new ProcessInstanceUpdated($step->instance));
             });
         });
     }
 }
-

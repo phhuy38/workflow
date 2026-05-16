@@ -4,8 +4,8 @@ use App\Models\ProcessInstance;
 use App\Models\ProcessTemplate;
 use App\Models\User;
 use Database\Seeders\RequiredDataSeeder;
-use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Inertia\Testing\AssertableInertia as Assert;
+
 use function Pest\Laravel\actingAs;
 
 beforeEach(function () {
@@ -23,7 +23,7 @@ test('beneficiary can see their own instances in the index page', function () {
     $manager->assignRole('manager');
 
     $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
-    
+
     // Instance for our beneficiary
     $myInstance = ProcessInstance::create([
         'template_id' => $template->id,
@@ -31,7 +31,7 @@ test('beneficiary can see their own instances in the index page', function () {
         'launched_by' => $manager->id,
         'status' => 'running',
         'created_for' => $beneficiary->id,
-        'template_snapshot_data' => []
+        'template_snapshot_data' => [],
     ]);
 
     // Instance for other user
@@ -41,7 +41,7 @@ test('beneficiary can see their own instances in the index page', function () {
         'launched_by' => $manager->id,
         'status' => 'running',
         'created_for' => $otherUser->id,
-        'template_snapshot_data' => []
+        'template_snapshot_data' => [],
     ]);
 
     $response = actingAs($beneficiary)->get(route('process-instances.index'));
@@ -62,14 +62,14 @@ test('beneficiary can view their own instance detail', function () {
     $manager->assignRole('manager');
 
     $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
-    
+
     $myInstance = ProcessInstance::create([
         'template_id' => $template->id,
         'name' => 'My Instance',
         'launched_by' => $manager->id,
         'status' => 'running',
         'created_for' => $beneficiary->id,
-        'template_snapshot_data' => []
+        'template_snapshot_data' => [],
     ]);
 
     $response = actingAs($beneficiary)->get(route('process-instances.show', $myInstance));
@@ -92,14 +92,14 @@ test('beneficiary gets 403 when viewing someone elses instance', function () {
     $manager->assignRole('manager');
 
     $template = ProcessTemplate::create(['name' => 'Template', 'created_by' => $manager->id, 'is_published' => true]);
-    
+
     $otherInstance = ProcessInstance::create([
         'template_id' => $template->id,
         'name' => 'Other Instance',
         'launched_by' => $manager->id,
         'status' => 'running',
         'created_for' => $otherUser->id,
-        'template_snapshot_data' => []
+        'template_snapshot_data' => [],
     ]);
 
     $response = actingAs($beneficiary)->get(route('process-instances.show', $otherInstance));

@@ -3,7 +3,6 @@
 use App\Models\ProcessInstance;
 use App\Models\ProcessTemplate;
 use App\Models\StepDefinition;
-use App\Models\StepExecution;
 use App\Models\StepMessage;
 use App\Models\User;
 use Database\Seeders\RequiredDataSeeder;
@@ -24,9 +23,9 @@ test('executor can view task detail with full process context', function () {
     $template = ProcessTemplate::create([
         'name' => 'Test Template',
         'created_by' => $manager->id,
-        'is_published' => true
+        'is_published' => true,
     ]);
-    
+
     // Create two steps
     StepDefinition::create([
         'template_id' => $template->id,
@@ -36,7 +35,7 @@ test('executor can view task detail with full process context', function () {
         'name' => 'First Step',
         'duration_hours' => 24,
     ]);
-    
+
     StepDefinition::create([
         'template_id' => $template->id,
         'order' => 2,
@@ -75,7 +74,7 @@ test('executor can view task detail with full process context', function () {
 
     $response->assertInertia(fn (Assert $page) => $page
         ->component('Instances/Show')
-        ->has('instance.data', fn (Assert $page) => $page
+        ->has('instance', fn (Assert $page) => $page
             ->where('name', 'Context Test Instance')
             ->has('template_name')
             ->has('creator_name')

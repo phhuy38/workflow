@@ -11,7 +11,5 @@ class MessageSent
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public function __construct(public StepMessage $message)
-    {
-    }
+    public function __construct(public StepMessage $message) {}
 }

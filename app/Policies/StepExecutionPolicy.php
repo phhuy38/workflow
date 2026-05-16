@@ -22,6 +22,7 @@ class StepExecutionPolicy
         if ($step->instance->status->getValue() !== 'running') {
             return false;
         }
+
         return ($user->id === $step->assigned_to || $user->hasRole(['admin', 'manager'])) && $step->status->getValue() === 'pending';
     }
 
@@ -30,6 +31,7 @@ class StepExecutionPolicy
         if ($step->instance->status->getValue() !== 'running') {
             return false;
         }
+
         return ($user->id === $step->assigned_to || $user->hasRole(['admin', 'manager'])) && $step->status->getValue() === 'in_progress';
     }
 
@@ -40,7 +42,8 @@ class StepExecutionPolicy
         }
 
         return match (true) {
-            $user->hasRole(['admin', 'manager']) => true,
+            $user->hasRole('admin') => true,
+            $user->hasRole('manager') => $user->id == $step->instance->launched_by,
             $user->id == $step->assigned_to => true,
             $user->hasRole('beneficiary') && $step->instance->created_for == $user->id => true,
             default => false,

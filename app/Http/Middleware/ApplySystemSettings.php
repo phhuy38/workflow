@@ -23,7 +23,7 @@ class ApplySystemSettings
             return SystemSetting::all()->pluck('value', 'key')->toArray();
         });
 
-        if (!empty($settings['smtp_host'])) {
+        if (! empty($settings['smtp_host'])) {
             Config::set('mail.default', 'smtp');
             Config::set('mail.mailers.smtp.host', $settings['smtp_host']);
             Config::set('mail.mailers.smtp.port', (int) ($settings['smtp_port'] ?? 587));
@@ -42,7 +42,7 @@ class ApplySystemSettings
             Config::set('mail.mailers.smtp.encryption', $settings['smtp_encryption'] ?? 'tls');
         }
 
-        if (!empty($settings['smtp_from_address'])) {
+        if (! empty($settings['smtp_from_address'])) {
             Config::set('mail.from.address', $settings['smtp_from_address']);
             // Use configured from_name or fall back to app name
             Config::set('mail.from.name', $settings['smtp_from_name'] ?? config('app.name'));

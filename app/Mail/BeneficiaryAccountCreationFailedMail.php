@@ -13,9 +13,7 @@ class BeneficiaryAccountCreationFailedMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public ProcessInstance $instance, public string $beneficiaryEmail)
-    {
-    }
+    public function __construct(public ProcessInstance $instance, public string $beneficiaryEmail) {}
 
     public function envelope(): Envelope
     {

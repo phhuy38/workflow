@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ProcessInstance;
 use App\Models\User;
 use App\Policies\ProcessInstancePolicy;
 use Database\Seeders\RequiredDataSeeder;
@@ -10,7 +11,7 @@ test('admin can do everything with instances', function () {
     $this->seed(RequiredDataSeeder::class);
     $user = User::factory()->create();
     $user->assignRole('admin');
-    $instance = new \App\Models\ProcessInstance();
+    $instance = new ProcessInstance;
 
     $policy = new ProcessInstancePolicy;
 
@@ -25,15 +26,15 @@ test('manager can launch and ping instances, but cancel/override only if they la
     $this->seed(RequiredDataSeeder::class);
     $user = User::factory()->create();
     $user->assignRole('manager');
-    $instanceOwned = new \App\Models\ProcessInstance(['launched_by' => $user->id]);
-    $instanceNotOwned = new \App\Models\ProcessInstance(['launched_by' => 999]);
+    $instanceOwned = new ProcessInstance(['launched_by' => $user->id]);
+    $instanceNotOwned = new ProcessInstance(['launched_by' => 999]);
 
     $policy = new ProcessInstancePolicy;
 
     expect($policy->viewAny($user))->toBeTrue();
     expect($policy->create($user))->toBeTrue();
     expect($policy->ping($user, $instanceOwned))->toBeTrue();
-    
+
     // Owned
     expect($policy->cancel($user, $instanceOwned))->toBeTrue();
     expect($policy->override($user, $instanceOwned))->toBeTrue();
@@ -47,7 +48,7 @@ test('process_designer can view instances but not launch or override', function 
     $this->seed(RequiredDataSeeder::class);
     $user = User::factory()->create();
     $user->assignRole('process_designer');
-    $instance = new \App\Models\ProcessInstance();
+    $instance = new ProcessInstance;
 
     $policy = new ProcessInstancePolicy;
 
@@ -63,11 +64,11 @@ test('executor cannot launch, cancel, override, or ping instances', function () 
     $this->seed(RequiredDataSeeder::class);
     $user = User::factory()->create();
     $user->assignRole('executor');
-    $instance = new \App\Models\ProcessInstance();
+    $instance = new ProcessInstance;
 
     $policy = new ProcessInstancePolicy;
 
-    expect($policy->viewAny($user))->toBeFalse();
+    expect($policy->viewAny($user))->toBeTrue();
     expect($policy->create($user))->toBeFalse();
     expect($policy->cancel($user, $instance))->toBeFalse();
     expect($policy->override($user, $instance))->toBeFalse();
@@ -78,11 +79,11 @@ test('beneficiary cannot manage instances', function () {
     $this->seed(RequiredDataSeeder::class);
     $user = User::factory()->create();
     $user->assignRole('beneficiary');
-    $instance = new \App\Models\ProcessInstance();
+    $instance = new ProcessInstance;
 
     $policy = new ProcessInstancePolicy;
 
-    expect($policy->viewAny($user))->toBeFalse();
+    expect($policy->viewAny($user))->toBeTrue();
     expect($policy->create($user))->toBeFalse();
     expect($policy->cancel($user, $instance))->toBeFalse();
     expect($policy->override($user, $instance))->toBeFalse();

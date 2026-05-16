@@ -15,11 +15,11 @@ class ForcePasswordReset
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user() && 
-            $request->user()->requires_password_reset && 
-            !$request->is('force-reset-password') && 
-            !$request->is('logout')) {
-            
+        if ($request->user() &&
+            $request->user()->requires_password_reset &&
+            ! $request->is('force-reset-password') &&
+            ! $request->is('logout')) {
+
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Password reset required'], 403);
             }

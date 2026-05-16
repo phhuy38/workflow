@@ -17,8 +17,6 @@ class InstanceStatusCalculator
         if ($instance->status->getValue() !== 'running') {
             return 'normal';
         }
-        
-
 
         /** @var StepExecution|null $activeStep */
         $activeStep = $instance->stepExecutions

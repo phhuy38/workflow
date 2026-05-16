@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ProcessInstance;
 use App\Models\ProcessTemplate;
 use App\Models\User;
 use Database\Seeders\RequiredDataSeeder;
@@ -122,7 +123,7 @@ test('cannot delete template if instances exist', function () {
         'created_by' => $designer->id,
     ]);
 
-    \App\Models\ProcessInstance::create([
+    ProcessInstance::create([
         'template_id' => $template->id,
         'name' => 'Instance 1',
         'template_snapshot_data' => ['name' => $template->name],
@@ -150,7 +151,7 @@ test('editing template does not affect existing instance snapshots', function ()
         'created_by' => $designer->id,
     ]);
 
-    $instance = \App\Models\ProcessInstance::create([
+    $instance = ProcessInstance::create([
         'template_id' => $template->id,
         'name' => 'Original Template Name',
         'template_snapshot_data' => ['name' => 'Original Template Name'],
@@ -167,4 +168,3 @@ test('editing template does not affect existing instance snapshots', function ()
     expect($instance->template_snapshot_data['name'])->toBe('Original Template Name');
     expect($template->refresh()->name)->toBe('Updated Template Name');
 });
-

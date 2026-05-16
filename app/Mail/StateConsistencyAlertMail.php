@@ -13,9 +13,7 @@ class StateConsistencyAlertMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public ProcessInstance $instance)
-    {
-    }
+    public function __construct(public ProcessInstance $instance) {}
 
     public function envelope(): Envelope
     {

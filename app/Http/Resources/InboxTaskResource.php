@@ -26,7 +26,7 @@ class InboxTaskResource extends JsonResource
 
     private function getUrgencyStatus(): string
     {
-        if (!$this->deadline_at || !$this->created_at) {
+        if (! $this->deadline_at || ! $this->created_at) {
             return $this->status->getValue(); // Fallback
         }
 

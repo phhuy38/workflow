@@ -3,10 +3,15 @@
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\InboxController;
 use App\Http\Controllers\ProcessInstanceController;
 use App\Http\Controllers\ProcessTemplateController;
 use App\Http\Controllers\StepDefinitionController;
 use App\Http\Controllers\StepExecutionController;
+use App\Http\Controllers\StepMessageController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
@@ -16,23 +21,24 @@ Route::inertia('/', 'Welcome', [
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/force-reset-password', function () {
-        if (!auth()->user()->requires_password_reset) {
+        if (! auth()->user()->requires_password_reset) {
             return redirect()->route('dashboard');
         }
+
         return inertia('Auth/ForceResetPassword');
     })->name('password.force-reset');
 
-    Route::post('/force-reset-password', function (\Illuminate\Http\Request $request) {
+    Route::post('/force-reset-password', function (Request $request) {
         $request->validate([
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
         $request->user()->update([
-            'password' => \Illuminate\Support\Facades\Hash::make($request->password),
+            'password' => Hash::make($request->password),
             'requires_password_reset' => false,
         ]);
 
-        \Illuminate\Support\Facades\Auth::login($request->user());
+        Auth::login($request->user());
 
         return redirect()->route('dashboard')->with('success', 'Mật khẩu đã được cập nhật.');
     });
@@ -40,7 +46,7 @@ Route::middleware(['auth'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('inbox', [\App\Http\Controllers\InboxController::class, 'index'])->name('inbox.index');
+    Route::get('inbox', [InboxController::class, 'index'])->name('inbox.index');
 
     // Story 2.1: Template management (index, store, show) + Story 2.3 (update, destroy) + Story 2.4 (publish/unpublish)
     Route::resource('process-templates', ProcessTemplateController::class)
@@ -68,7 +74,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('step-executions.complete');
     Route::post('step-executions/{step_execution}/override', [StepExecutionController::class, 'override'])
         ->name('step-executions.override');
-    Route::post('step-executions/{step_execution}/messages', [\App\Http\Controllers\StepMessageController::class, 'store'])
+    Route::post('step-executions/{step_execution}/messages', [StepMessageController::class, 'store'])
         ->name('step-messages.store');
 });
 

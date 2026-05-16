@@ -2,9 +2,12 @@
 
 namespace App\Actions\Process;
 
+use App\Events\MessageSent;
+use App\Events\StepExecutionUpdated;
 use App\Models\StepExecution;
 use App\Models\StepMessage;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class SendMessageToStep
 {
@@ -22,7 +25,7 @@ class SendMessageToStep
             $recipientId = $step->assigned_to;
         }
 
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($step, $sender, $recipientId, $body) {
+        return DB::transaction(function () use ($step, $sender, $recipientId, $body) {
             $message = StepMessage::create([
                 'step_execution_id' => $step->id,
                 'sender_id' => $sender->id,
@@ -37,12 +40,12 @@ class SendMessageToStep
                 ->withProperties(['message_id' => $message->id])
                 ->log('sent_message');
 
-            \Illuminate\Support\Facades\DB::afterCommit(function () use ($message, $step) {
+            DB::afterCommit(function () use ($message, $step) {
                 // Fire new message event for email
-                event(new \App\Events\MessageSent($message));
+                event(new MessageSent($message));
 
                 // Optional: Trigger StepExecutionUpdated to notify frontend via Echo
-                event(new \App\Events\StepExecutionUpdated($step));
+                event(new StepExecutionUpdated($step));
             });
 
             return $message;

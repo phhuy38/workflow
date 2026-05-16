@@ -70,7 +70,7 @@ class CheckApproachingDeadlines extends Command
                         $deadline = $step->deadline_at;
                         $durationHours = $step->step_snapshot_data['duration_hours'] ?? 24;
                         $totalDurationSeconds = $durationHours * 3600;
-                        
+
                         $thresholdTime = $deadline->copy()->subSeconds($totalDurationSeconds * 0.3);
 
                         if ($now->greaterThanOrEqualTo($thresholdTime)) {

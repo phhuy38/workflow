@@ -3,6 +3,7 @@
 namespace App\Actions\Process;
 
 use App\Events\ProcessLaunched;
+use App\Events\TaskAssigned;
 use App\Models\ProcessInstance;
 use App\Models\ProcessTemplate;
 use App\Models\StepExecution;
@@ -64,7 +65,7 @@ class LaunchProcessInstance
                 ]);
 
                 if ($firstStep->assigned_to) {
-                    event(new \App\Events\TaskAssigned($firstStep));
+                    event(new TaskAssigned($firstStep));
                 }
             }
             event(new ProcessLaunched($instance));

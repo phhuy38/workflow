@@ -1,6 +1,8 @@
 <?php
 
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
@@ -19,8 +21,8 @@ pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->beforeEach(function () {
         $this->withoutVite();
-        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class);
-        \Illuminate\Support\Facades\Cache::flush();
+        $this->withoutMiddleware(PreventRequestForgery::class);
+        Cache::flush();
         // P2: Clear spatie permission cache to prevent race condition between tests
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
     })

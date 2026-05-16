@@ -19,6 +19,7 @@ class HandleBeneficiaryAccountCreation implements ShouldQueue
     use InteractsWithQueue;
 
     public $tries = 3;
+
     public bool $deleteWhenMissingModels = true;
 
     public function backoff(): array
@@ -40,7 +41,7 @@ class HandleBeneficiaryAccountCreation implements ShouldQueue
     {
         $step = $event->step;
         $step->loadMissing(['instance.creator']);
-        
+
         $configData = $step->step_snapshot_data['config_data'] ?? [];
         $isAccountCreationStep = $configData['is_account_creation_step'] ?? false;
 
@@ -53,6 +54,7 @@ class HandleBeneficiaryAccountCreation implements ShouldQueue
 
         if (! $beneficiaryEmail || is_array($beneficiaryEmail)) {
             Log::warning("Account creation step {$step->id} completed, but beneficiary_email is invalid or missing.", ['context' => $contextData]);
+
             return;
         }
 
@@ -92,7 +94,7 @@ class HandleBeneficiaryAccountCreation implements ShouldQueue
 
         } catch (\Throwable $e) {
             Log::error("Failed to process Beneficiary Account Creation for {$beneficiaryEmail}", ['exception' => $e]);
-            
+
             if ($step->instance->creator && $step->instance->creator->email) {
                 Mail::to($step->instance->creator->email)->send(new BeneficiaryAccountCreationFailedMail($step->instance, $beneficiaryEmail));
             }

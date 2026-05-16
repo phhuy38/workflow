@@ -9,19 +9,18 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Str;
 
 class BeneficiaryExistingAccountMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public User $user, public ProcessInstance $instance)
-    {
-    }
+    public function __construct(public User $user, public ProcessInstance $instance) {}
 
     public function envelope(): Envelope
     {
         $cleanName = str_replace(["\r", "\n"], ' ', $this->instance->name);
-        $subjectName = \Illuminate\Support\Str::limit($cleanName, 50);
+        $subjectName = Str::limit($cleanName, 50);
 
         return new Envelope(
             subject: "Tiến độ mới: {$subjectName}",
